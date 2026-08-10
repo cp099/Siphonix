@@ -1,0 +1,30 @@
+# Node dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+dist-isolation
+
+# Tauri build artifacts
+src-tauri/target
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Environment files
+.env
+.env.local
+
+# SQLite files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
