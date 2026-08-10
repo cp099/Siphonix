@@ -1,0 +1,26 @@
+[package]
+name = "siphonix"
+version = "0.1.0"
+description = "Siphonix — Make it yours"
+authors = ["Siphonix Team"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = [] }
+tauri-plugin-dialog = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.43", features = ["process", "io-util", "sync", "rt-multi-thread", "macros", "time"] }
+chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio-native-tls", "chrono", "migrate"] }
+rand = "0.8"
+tracing = "0.1"
+thiserror = "2.0"
+regex = "1.11"
+
+[lib]
+name = "siphonix_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
