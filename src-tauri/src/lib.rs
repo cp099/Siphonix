@@ -3,6 +3,7 @@ pub mod db;
 pub mod engine;
 pub mod library;
 pub mod queue;
+pub mod runtime;
 
 use std::sync::Arc;
 use tauri::Manager;
@@ -10,15 +11,16 @@ use tauri::Manager;
 pub use commands::{
     cancel_download, cancel_job, cancel_playlist_inspection, delete_library_file, delete_preset,
     enqueue_download, enqueue_playlist_entries, force_resume_cooldown, get_app_info, get_engine_status,
-    get_library_items, get_library_jobs, get_presets, get_queue_jobs, inspect_playlist_url, inspect_video_url,
-    open_library_item, pause_queue, remove_library_item, resume_queue, reveal_library_item, save_preset,
-    set_default_preset, set_max_concurrency, start_download, validate_download_options, validate_url,
-    verify_library_status,
+    get_library_items, get_library_jobs, get_presets, get_queue_jobs, get_runtime_status, inspect_playlist_url,
+    inspect_video_url, open_library_item, pause_queue, refresh_runtime_status, remove_library_item,
+    resume_queue, reveal_library_item, save_preset, set_default_preset, set_max_concurrency, start_download,
+    validate_download_options, validate_url, verify_library_status,
 };
 pub use db::DbRepository;
 pub use engine::{DownloadManager, PlaylistInspector};
 pub use library::LibraryService;
 pub use queue::QueueScheduler;
+pub use runtime::EngineManager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -32,7 +34,8 @@ pub fn run() {
                 .unwrap_or_else(|_| std::path::PathBuf::from("./data"));
             let db_path = app_data_dir.join("siphonix.db");
 
-            let download_manager = DownloadManager::new();
+            let engine_manager = Arc::new(EngineManager::new(&app_data_dir, None));
+            let download_manager = DownloadManager::new_with_runtime(engine_manager.clone());
             let playlist_inspector = PlaylistInspector::new();
 
             tauri::async_runtime::block_on(async {
@@ -42,6 +45,10 @@ pub fn run() {
                 let db_arc = Arc::new(db);
                 let scheduler = QueueScheduler::new(db_arc.clone(), download_manager.clone()).await;
 
+                // Initial runtime status evaluation
+                engine_manager.refresh_status().await;
+
+                app.manage(engine_manager);
                 app.manage(download_manager);
                 app.manage(playlist_inspector);
                 app.manage(db_arc);
@@ -81,7 +88,9 @@ pub fn run() {
             get_presets,
             save_preset,
             delete_preset,
-            set_default_preset
+            set_default_preset,
+            get_runtime_status,
+            refresh_runtime_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running siphonix application");

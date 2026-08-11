@@ -11,10 +11,13 @@ use super::error::EngineError;
 use super::registry::ProcessRegistry;
 use super::runner::{OutputParser, ProgressUpdate};
 
+use crate::runtime::EngineManager;
+
 #[derive(Clone)]
 pub struct DownloadManager {
     registry: ProcessRegistry,
     engine_paths: Arc<Mutex<Option<EnginePaths>>>,
+    runtime_manager: Option<Arc<EngineManager>>,
 }
 
 impl DownloadManager {
@@ -23,10 +26,29 @@ impl DownloadManager {
         Self {
             registry: ProcessRegistry::new(),
             engine_paths: Arc::new(Mutex::new(detector_paths)),
+            runtime_manager: None,
+        }
+    }
+
+    pub fn new_with_runtime(runtime_manager: Arc<EngineManager>) -> Self {
+        Self {
+            registry: ProcessRegistry::new(),
+            engine_paths: Arc::new(Mutex::new(None)),
+            runtime_manager: Some(runtime_manager),
         }
     }
 
     pub async fn ensure_engine(&self) -> Result<EnginePaths, EngineError> {
+        if let Some(ref runtime_mgr) = self.runtime_manager {
+            if let Some(paths) = runtime_mgr.get_engine_paths().await {
+                return Ok(paths);
+            } else {
+                return Err(EngineError::EngineNotFound {
+                    name: "yt-dlp or ffmpeg".to_string(),
+                });
+            }
+        }
+
         let mut guard = self.engine_paths.lock().await;
         if let Some(paths) = guard.as_ref() {
             Ok(paths.clone())

@@ -94,6 +94,13 @@ export const DownloadView: React.FC = () => {
 
   // Feedback status
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [runtimeStatus, setRuntimeStatus] = useState<any>(null);
+
+  React.useEffect(() => {
+    if (downloadService.getRuntimeStatus) {
+      downloadService.getRuntimeStatus().then(setRuntimeStatus).catch(() => {});
+    }
+  }, []);
 
   const handleUrlChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -267,6 +274,29 @@ export const DownloadView: React.FC = () => {
           Paste any YouTube video or playlist link to inspect and queue downloads.
         </p>
       </div>
+
+      {/* First-Run Readiness Banner */}
+      {runtimeStatus && !runtimeStatus.ready && (
+        <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-xs flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
+            <div>
+              <p className="font-semibold text-white">Siphonix isn't ready yet</p>
+              <p className="text-zinc-300">The download engine is unavailable or incompatible. Check Settings → Runtime for diagnostics.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              if (downloadService.refreshRuntimeStatus) {
+                downloadService.refreshRuntimeStatus().then(setRuntimeStatus);
+              }
+            }}
+            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded font-medium transition-colors"
+          >
+            Check Again
+          </button>
+        </div>
+      )}
 
       {/* URL Input Bar */}
       <div className="bg-surface-card rounded-2xl border border-surface-border p-4 shadow-subtle space-y-4">

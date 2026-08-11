@@ -42,8 +42,35 @@ export interface LibraryItem {
   playlistEntryIndex?: number;
   createdAt: string;
   completedAt: string;
-  lastVerifiedAt: string;
-  fileStatus: FileStatus;
+  lastVerifiedAt?: string;
+  fileStatus: "AVAILABLE" | "MISSING";
+  optionsJson?: string;
+}
+
+export type EngineSource = "Managed" | "System" | "DevOverride" | "None";
+export type EngineStatusState = "READY" | "MISSING" | "OUTDATED" | "INCOMPATIBLE" | "CORRUPTED" | "CHECKING";
+
+export interface EngineInfo {
+  name: string;
+  path?: string;
+  version?: string;
+  source: EngineSource;
+  compatible: boolean;
+  status: EngineStatusState;
+  error?: string;
+}
+
+export interface Diagnostic {
+  code: string;
+  level: "info" | "warning" | "error";
+  message: string;
+}
+
+export interface RuntimeStatus {
+  ready: boolean;
+  yt_dlp: EngineInfo;
+  ffmpeg: EngineInfo;
+  diagnostics: Diagnostic[];
 }
 
 export const UrlInputSchema = z.string().trim().min(1, "URL cannot be empty").refine(

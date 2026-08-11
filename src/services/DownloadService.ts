@@ -17,6 +17,8 @@ export interface IDownloadService {
   resumeJob(id: string): Promise<void>;
   cancelJob(id: string): Promise<void>;
   retryJob(id: string): Promise<void>;
+  getRuntimeStatus?(): Promise<any>;
+  refreshRuntimeStatus?(): Promise<any>;
 }
 
 /**

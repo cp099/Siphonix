@@ -12,6 +12,7 @@ import {
   MediaMode,
   PlaylistInfo,
   QueueSummary,
+  RuntimeStatus,
   UrlValidationResult,
 } from "../types";
 import { IDownloadService } from "./DownloadService";
@@ -260,6 +261,16 @@ export class TauriDownloadService implements IDownloadService {
 
   async setDefaultPreset(presetId: string): Promise<void> {
     await invoke("set_default_preset", { presetId });
+  }
+
+  // --- Phase 7 Runtime Management IPC ---
+
+  async getRuntimeStatus(): Promise<RuntimeStatus> {
+    return await invoke<RuntimeStatus>("get_runtime_status");
+  }
+
+  async refreshRuntimeStatus(): Promise<RuntimeStatus> {
+    return await invoke<RuntimeStatus>("refresh_runtime_status");
   }
 
   public subscribe(listener: (jobs: DownloadJob[]) => void): () => void {
