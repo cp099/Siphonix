@@ -46,6 +46,10 @@ pub async fn enqueue_download(
         created_at: Utc::now(),
         started_at: None,
         completed_at: None,
+        source_video_id: None,
+        source_playlist_id: None,
+        source_playlist_title: None,
+        playlist_entry_index: None,
     };
 
     scheduler.enqueue_job(job).await

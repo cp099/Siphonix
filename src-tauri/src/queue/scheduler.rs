@@ -36,8 +36,7 @@ pub struct QueueScheduler {
 }
 
 impl QueueScheduler {
-    pub async fn new(db: DbRepository, download_manager: DownloadManager) -> Arc<Self> {
-        let db = Arc::new(db);
+    pub async fn new(db: Arc<DbRepository>, download_manager: DownloadManager) -> Arc<Self> {
         let _ = db.recover_interrupted_jobs().await;
 
         let db_jobs = db.get_all_jobs().await.unwrap_or_default();

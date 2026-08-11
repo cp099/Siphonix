@@ -26,6 +26,10 @@ pub struct DownloadJob {
     pub created_at: DateTime<Utc>,
     pub started_at: Option<DateTime<Utc>>,
     pub completed_at: Option<DateTime<Utc>>,
+    pub source_video_id: Option<String>,
+    pub source_playlist_id: Option<String>,
+    pub source_playlist_title: Option<String>,
+    pub playlist_entry_index: Option<u32>,
 }
 
 impl DownloadJob {
@@ -52,6 +56,10 @@ impl DownloadJob {
             created_at: self.created_at.to_rfc3339(),
             started_at: self.started_at.map(|dt| dt.to_rfc3339()),
             completed_at: self.completed_at.map(|dt| dt.to_rfc3339()),
+            source_video_id: self.source_video_id.clone(),
+            source_playlist_id: self.source_playlist_id.clone(),
+            source_playlist_title: self.source_playlist_title.clone(),
+            playlist_entry_index: self.playlist_entry_index.map(|idx| idx as i64),
         }
     }
 
@@ -78,6 +86,10 @@ impl DownloadJob {
             created_at: DateTime::parse_from_rfc3339(&db.created_at).map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&Utc)),
             started_at: db.started_at.and_then(|s| DateTime::parse_from_rfc3339(&s).ok().map(|dt| dt.with_timezone(&Utc))),
             completed_at: db.completed_at.and_then(|s| DateTime::parse_from_rfc3339(&s).ok().map(|dt| dt.with_timezone(&Utc))),
+            source_video_id: db.source_video_id,
+            source_playlist_id: db.source_playlist_id,
+            source_playlist_title: db.source_playlist_title,
+            playlist_entry_index: db.playlist_entry_index.map(|idx| idx as u32),
         }
     }
 }

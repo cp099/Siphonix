@@ -2,7 +2,7 @@ use std::path::Path;
 use sqlx::{sqlite::SqliteConnectOptions, SqlitePool, FromRow};
 use std::str::FromStr;
 use std::time::{Duration, Instant};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 
@@ -29,6 +29,10 @@ pub struct DbJob {
     pub created_at: String,
     pub started_at: Option<String>,
     pub completed_at: Option<String>,
+    pub source_video_id: Option<String>,
+    pub source_playlist_id: Option<String>,
+    pub source_playlist_title: Option<String>,
+    pub playlist_entry_index: Option<i64>,
 }
 
 pub struct DbRepository {
@@ -65,8 +69,9 @@ impl DbRepository {
             INSERT INTO jobs (
                 id, url, title, thumbnail_url, media_mode, format, quality, destination_path,
                 state, progress, download_speed, eta, file_size, error_message, last_error_category,
-                retry_count, max_retries, next_retry_at, created_at, started_at, completed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                retry_count, max_retries, next_retry_at, created_at, started_at, completed_at,
+                source_video_id, source_playlist_id, source_playlist_title, playlist_entry_index
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&job.id)
@@ -90,6 +95,10 @@ impl DbRepository {
         .bind(&job.created_at)
         .bind(&job.started_at)
         .bind(&job.completed_at)
+        .bind(&job.source_video_id)
+        .bind(&job.source_playlist_id)
+        .bind(&job.source_playlist_title)
+        .bind(job.playlist_entry_index)
         .execute(&self.pool)
         .await?;
 
@@ -172,7 +181,8 @@ impl DbRepository {
             r#"
             SELECT id, url, title, thumbnail_url, media_mode, format, quality, destination_path,
                    state, progress, download_speed, eta, file_size, error_message, last_error_category,
-                   retry_count, max_retries, next_retry_at, created_at, started_at, completed_at
+                   retry_count, max_retries, next_retry_at, created_at, started_at, completed_at,
+                   source_video_id, source_playlist_id, source_playlist_title, playlist_entry_index
             FROM jobs
             ORDER BY created_at DESC
             "#
@@ -188,7 +198,8 @@ impl DbRepository {
             r#"
             SELECT id, url, title, thumbnail_url, media_mode, format, quality, destination_path,
                    state, progress, download_speed, eta, file_size, error_message, last_error_category,
-                   retry_count, max_retries, next_retry_at, created_at, started_at, completed_at
+                   retry_count, max_retries, next_retry_at, created_at, started_at, completed_at,
+                   source_video_id, source_playlist_id, source_playlist_title, playlist_entry_index
             FROM jobs
             WHERE state = 'COMPLETED'
             ORDER BY completed_at DESC
@@ -198,6 +209,31 @@ impl DbRepository {
         .await?;
 
         Ok(rows)
+    }
+
+    /// Check if video IDs already exist in active/queued/completed states (excluding FAILED & CANCELLED)
+    pub async fn find_existing_video_ids(&self, video_ids: &[String]) -> Result<HashSet<String>, sqlx::Error> {
+        if video_ids.is_empty() {
+            return Ok(HashSet::new());
+        }
+
+        let jobs = self.get_all_jobs().await?;
+        let active_states: HashSet<&str> = [
+            "QUEUED", "PREPARING", "DOWNLOADING", "PROCESSING", "RETRYING", "COOLDOWN", "COMPLETED"
+        ].into_iter().collect();
+
+        let mut existing = HashSet::new();
+        for job in jobs {
+            if active_states.contains(job.state.as_str()) {
+                if let Some(v_id) = &job.source_video_id {
+                    if video_ids.contains(v_id) {
+                        existing.insert(v_id.clone());
+                    }
+                }
+            }
+        }
+
+        Ok(existing)
     }
 
     pub async fn recover_interrupted_jobs(&self) -> Result<usize, sqlx::Error> {

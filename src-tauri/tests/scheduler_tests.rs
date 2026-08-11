@@ -13,7 +13,7 @@ async fn setup_test_scheduler() -> (std::sync::Arc<QueueScheduler>, std::path::P
     let db_path = temp_dir.join("test.db");
     let db = DbRepository::init(&db_path).await.expect("DB init failed");
     let mgr = DownloadManager::new();
-    let scheduler = QueueScheduler::new(db, mgr).await;
+    let scheduler = QueueScheduler::new(std::sync::Arc::new(db), mgr).await;
     (scheduler, temp_dir)
 }
 
@@ -40,6 +40,10 @@ fn create_test_job(id: &str) -> DownloadJob {
         created_at: Utc::now(),
         started_at: None,
         completed_at: None,
+        source_video_id: Some(id.to_string()),
+        source_playlist_id: None,
+        source_playlist_title: None,
+        playlist_entry_index: None,
     }
 }
 

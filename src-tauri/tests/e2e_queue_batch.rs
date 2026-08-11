@@ -27,7 +27,7 @@ async fn test_real_world_batch_and_crash_recovery() {
     // Initialize DB and Scheduler
     let db = DbRepository::init(&db_path).await.expect("DB init failed");
     let mgr = DownloadManager::new();
-    let scheduler = QueueScheduler::new(db, mgr).await;
+    let scheduler = QueueScheduler::new(std::sync::Arc::new(db), mgr).await;
 
     scheduler.set_max_concurrency(2).await;
 
@@ -56,6 +56,10 @@ async fn test_real_world_batch_and_crash_recovery() {
             created_at: Utc::now(),
             started_at: None,
             completed_at: None,
+            source_video_id: Some(format!("vid-{}", idx + 1)),
+            source_playlist_id: None,
+            source_playlist_title: None,
+            playlist_entry_index: None,
         };
 
         let enqueued = scheduler.enqueue_job(job).await.expect("Enqueue failed");
