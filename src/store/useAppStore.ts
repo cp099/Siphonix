@@ -23,6 +23,8 @@ interface AppState {
   setTheme: (theme: "dark" | "light" | "system") => void;
 
   // Active Draft Download Configuration
+  url: string;
+  setUrl: (url: string) => void;
   inputUrl: string;
   setInputUrl: (url: string) => void;
   urlValidation: UrlValidationResult | null;
@@ -70,8 +72,10 @@ export const useAppStore = create<AppState>((set) => ({
   },
 
   // Active Draft Configuration
+  url: "",
+  setUrl: (url) => set({ url, inputUrl: url }),
   inputUrl: "",
-  setInputUrl: (inputUrl) => set({ inputUrl }),
+  setInputUrl: (inputUrl) => set({ inputUrl, url: inputUrl }),
   urlValidation: null,
   setUrlValidation: (urlValidation) => set({ urlValidation }),
 

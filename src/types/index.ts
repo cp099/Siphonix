@@ -19,6 +19,8 @@ export type AudioQuality = "best" | "320k" | "256k" | "192k" | "128k";
 export type VideoFormat = "MP4" | "MKV" | "WEBM";
 export type VideoQuality = "best" | "2160p" | "1440p" | "1080p" | "720p" | "480p" | "360p";
 
+export type UrlType = "VIDEO" | "PLAYLIST" | "VIDEO_WITH_PLAYLIST" | "INVALID";
+
 export const UrlInputSchema = z.string().trim().min(1, "URL cannot be empty").refine(
   (val) => val.includes("youtube.com/") || val.includes("youtu.be/"),
   { message: "Please enter a valid YouTube video or playlist link" }
@@ -26,6 +28,7 @@ export const UrlInputSchema = z.string().trim().min(1, "URL cannot be empty").re
 
 export interface UrlValidationResult {
   valid: boolean;
+  url_type: UrlType;
   is_playlist: boolean;
   video_id: string | null;
   playlist_id: string | null;
@@ -71,6 +74,47 @@ export interface DownloadJob {
   nextRetryAt?: string;
   createdAt: string;
   completedAt?: string;
+  sourceVideoId?: string;
+  sourcePlaylistId?: string;
+  sourcePlaylistTitle?: string;
+  playlistEntryIndex?: number;
+}
+
+export interface PlaylistEntry {
+  id: string;
+  index: number;
+  url: string;
+  title: string;
+  duration?: number;
+  thumbnail_url?: string;
+  availability: string; // "AVAILABLE" | "UNAVAILABLE" | "PRIVATE" | "DELETED" | "UNKNOWN"
+}
+
+export interface PlaylistInfo {
+  id: string;
+  title: string;
+  uploader?: string;
+  webpage_url?: string;
+  entry_count: number;
+  available_count: number;
+  entries: PlaylistEntry[];
+}
+
+export interface EnqueuePlaylistParams {
+  playlist_id: string;
+  playlist_title: string;
+  entries: PlaylistEntry[];
+  media_mode: MediaMode;
+  audio_format?: AudioFormat;
+  audio_quality?: AudioQuality;
+  video_format?: VideoFormat;
+  video_quality?: VideoQuality;
+  destination_path: string;
+}
+
+export interface EnqueuePlaylistResult {
+  added_count: number;
+  skipped_count: number;
 }
 
 export interface CooldownStatus {

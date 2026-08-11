@@ -19,6 +19,7 @@ export async function invokeValidateUrl(url: string): Promise<UrlValidationResul
     } catch (err) {
       return {
         valid: false,
+        url_type: "INVALID",
         is_playlist: false,
         video_id: null,
         playlist_id: null,
@@ -30,12 +31,13 @@ export async function invokeValidateUrl(url: string): Promise<UrlValidationResul
   // Web Browser fallback simulation
   const trimmed = url.trim();
   if (!trimmed) {
-    return { valid: false, is_playlist: false, video_id: null, playlist_id: null, message: "URL cannot be empty" };
+    return { valid: false, url_type: "INVALID", is_playlist: false, video_id: null, playlist_id: null, message: "URL cannot be empty" };
   }
 
   if (trimmed.includes("playlist?list=")) {
     return {
       valid: true,
+      url_type: "PLAYLIST",
       is_playlist: true,
       video_id: null,
       playlist_id: "PL_demo_playlist_123",
@@ -46,6 +48,7 @@ export async function invokeValidateUrl(url: string): Promise<UrlValidationResul
   if (trimmed.includes("youtube.com/watch") || trimmed.includes("youtu.be/")) {
     return {
       valid: true,
+      url_type: "VIDEO",
       is_playlist: false,
       video_id: "demo_video_456",
       playlist_id: null,
@@ -55,6 +58,7 @@ export async function invokeValidateUrl(url: string): Promise<UrlValidationResul
 
   return {
     valid: false,
+    url_type: "INVALID",
     is_playlist: false,
     video_id: null,
     playlist_id: null,

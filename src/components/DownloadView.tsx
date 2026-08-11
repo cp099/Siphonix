@@ -1,328 +1,573 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
-  Clipboard,
-  CheckCircle2,
-  AlertCircle,
+  Download,
   Folder,
   Music,
   Video,
-  Sparkles,
-  ArrowRight,
-  ListVideo,
+  ListMusic,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { downloadService } from "../services/DownloadService";
-import { AudioFormat, AudioQuality, VideoFormat, VideoQuality } from "../types";
+import { TauriDownloadService } from "../services/TauriDownloadService";
+import {
+  AudioFormat,
+  AudioQuality,
+  MediaMode,
+  PlaylistInfo,
+  VideoFormat,
+  VideoQuality,
+} from "../types";
 
 export const DownloadView: React.FC = () => {
-  const {
-    inputUrl,
-    setInputUrl,
-    urlValidation,
-    setUrlValidation,
-    mediaMode,
-    setMediaMode,
-    audioFormat,
-    setAudioFormat,
-    audioQuality,
-    setAudioQuality,
-    videoFormat,
-    setVideoFormat,
-    videoQuality,
-    setVideoQuality,
-    destinationPath,
-    setDestinationPath,
-    setActiveTab,
-  } = useAppStore();
+  const { url, setUrl, settings } = useAppStore();
+  const [inputUrl, setInputUrl] = useState(url);
+  const [mediaMode, setMediaMode] = useState<MediaMode>("video");
+  const [audioFormat] = useState<AudioFormat>("MP3");
+  const [audioQuality, setAudioQuality] = useState<AudioQuality>("best");
+  const [videoFormat] = useState<VideoFormat>("MP4");
+  const [videoQuality, setVideoQuality] = useState<VideoQuality>("1080p");
+  const [destinationPath, setDestinationPath] = useState(settings.defaultDestination);
 
   const [isValidating, setIsValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState<{
+    valid: boolean;
+    url_type?: "VIDEO" | "PLAYLIST" | "VIDEO_WITH_PLAYLIST" | "INVALID";
+    is_playlist?: boolean;
+    video_id?: string | null;
+    playlist_id?: string | null;
+    message?: string;
+  } | null>(null);
 
-  // Validate URL whenever inputUrl changes
-  useEffect(() => {
-    if (!inputUrl.trim()) {
-      setUrlValidation(null);
-      return;
-    }
+  // Playlist Inspection & Selection state
+  const [isInspecting, setIsInspecting] = useState(false);
+  const [playlistInfo, setPlaylistInfo] = useState<PlaylistInfo | null>(null);
+  const [selectedEntryIds, setSelectedEntryIds] = useState<Set<String>>(new Set());
+  const [inspectionError, setInspectionError] = useState<string | null>(null);
 
-    const timer = setTimeout(async () => {
+  // Feedback status
+  const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleUrlChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInputUrl(val);
+    setUrl(val);
+    setPlaylistInfo(null);
+    setInspectionError(null);
+    setFeedbackMsg(null);
+
+    if (val.trim().length > 10) {
       setIsValidating(true);
       try {
-        const result = await downloadService.validateUrl(inputUrl);
-        setUrlValidation(result);
-      } catch (err) {
-        setUrlValidation({
-          valid: false,
-          is_playlist: false,
-          video_id: null,
-          playlist_id: null,
-          message: String(err),
-        });
+        const res = await downloadService.validateUrl(val);
+        setValidationResult(res);
+
+        // Pure PLAYLIST URL -> trigger inspection automatically
+        if (res.valid && res.url_type === "PLAYLIST") {
+          handleInspectPlaylist(val);
+        }
+      } catch {
+        setValidationResult({ valid: false, message: "Validation error" });
       } finally {
         setIsValidating(false);
       }
-    }, 300);
+    } else {
+      setValidationResult(null);
+    }
+  };
 
-    return () => clearTimeout(timer);
-  }, [inputUrl, setUrlValidation]);
+  const handlePickFolder = async () => {
+    const picked = await downloadService.pickDestinationFolder(destinationPath);
+    if (picked) {
+      setDestinationPath(picked);
+    }
+  };
 
-  const handlePaste = async () => {
+  const handleInspectPlaylist = async (urlToInspect?: string) => {
+    const targetUrl = urlToInspect || inputUrl;
+    setIsInspecting(true);
+    setInspectionError(null);
+    setFeedbackMsg(null);
+
     try {
-      const text = await navigator.clipboard.readText();
-      if (text) {
-        setInputUrl(text);
+      if (downloadService instanceof TauriDownloadService) {
+        const info = await downloadService.inspectPlaylist(targetUrl, "insp-active");
+        setPlaylistInfo(info);
+
+        // Pre-select all available entries
+        const availableIds = new Set(
+          info.entries.filter((e) => e.availability === "AVAILABLE").map((e) => e.id)
+        );
+        setSelectedEntryIds(availableIds);
       }
-    } catch {
-      // Fallback
+    } catch (err) {
+      setInspectionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsInspecting(false);
     }
   };
 
-  const handleBrowseFolder = async () => {
-    const selected = await downloadService.pickDestinationFolder(destinationPath);
-    if (selected) {
-      setDestinationPath(selected);
+  const handleCancelInspection = async () => {
+    if (downloadService instanceof TauriDownloadService) {
+      await downloadService.cancelPlaylistInspection("insp-active");
+      setIsInspecting(false);
     }
   };
 
-  const handleStartDownload = async () => {
-    if (!urlValidation || !urlValidation.valid) return;
-
-    await downloadService.enqueueJob({
-      url: inputUrl,
-      mediaMode,
-      audioFormat: mediaMode === "audio" ? audioFormat : undefined,
-      audioQuality: mediaMode === "audio" ? audioQuality : undefined,
-      videoFormat: mediaMode === "video" ? videoFormat : undefined,
-      videoQuality: mediaMode === "video" ? videoQuality : undefined,
-      destinationPath,
-      isPlaylist: urlValidation.is_playlist,
-    });
-
-    // Reset input & navigate to Queue tab
-    setInputUrl("");
-    setUrlValidation(null);
-    setActiveTab("queue");
+  // Selection handlers
+  const toggleSelectEntry = (id: string, isAvailable: boolean) => {
+    if (!isAvailable) return;
+    const next = new Set(selectedEntryIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedEntryIds(next);
   };
 
-  const audioFormats: AudioFormat[] = ["MP3", "M4A", "AAC", "FLAC", "ALAC", "OPUS", "WAV"];
-  const videoFormats: VideoFormat[] = ["MP4", "MKV", "WEBM"];
+  const handleSelectAll = () => {
+    if (!playlistInfo) return;
+    const availableIds = new Set(
+      playlistInfo.entries.filter((e) => e.availability === "AVAILABLE").map((e) => e.id)
+    );
+    setSelectedEntryIds(availableIds);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedEntryIds(new Set());
+  };
+
+  const handleSelectAvailableOnly = () => {
+    handleSelectAll();
+  };
+
+  // Submit Single Download
+  const handleStartSingleDownload = async () => {
+    try {
+      await downloadService.enqueueJob({
+        url: inputUrl,
+        mediaMode,
+        audioFormat,
+        audioQuality,
+        videoFormat,
+        videoQuality,
+        destinationPath,
+      });
+      setFeedbackMsg({ type: "success", text: "Download added to queue!" });
+    } catch (err) {
+      setFeedbackMsg({ type: "error", text: err instanceof Error ? err.message : String(err) });
+    }
+  };
+
+  // Submit Playlist Queue Expansion
+  const handleEnqueuePlaylist = async () => {
+    if (!playlistInfo || selectedEntryIds.size === 0) return;
+
+    const selectedEntries = playlistInfo.entries.filter((e) => selectedEntryIds.has(e.id));
+
+    try {
+      if (downloadService instanceof TauriDownloadService) {
+        const res = await downloadService.enqueuePlaylist({
+          playlist_id: playlistInfo.id,
+          playlist_title: playlistInfo.title,
+          entries: selectedEntries,
+          media_mode: mediaMode,
+          audio_format: audioFormat,
+          audio_quality: audioQuality,
+          video_format: videoFormat,
+          video_quality: videoQuality,
+          destination_path: destinationPath,
+        });
+
+        let msg = `${res.added_count} items added to queue.`;
+        if (res.skipped_count > 0) {
+          msg += ` (${res.skipped_count} existing duplicates skipped)`;
+        }
+        setFeedbackMsg({ type: "success", text: msg });
+      }
+    } catch (err) {
+      setFeedbackMsg({ type: "error", text: err instanceof Error ? err.message : String(err) });
+    }
+  };
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-6 space-y-6">
-      {/* Hero Header */}
+    <div className="max-w-4xl mx-auto py-8 px-6 space-y-8">
+      {/* Title */}
       <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-          What do you want to download?
+        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+          Siphonix Download Manager
         </h1>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Paste a YouTube link below. Siphonix processes audio and video effortlessly.
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Paste any YouTube video or playlist link to inspect and queue downloads.
         </p>
       </div>
 
-      {/* Main Link Input Card */}
-      <div className="bg-surface-card rounded-xl border border-surface-border p-4 shadow-subtle space-y-3">
+      {/* URL Input Bar */}
+      <div className="bg-surface-card rounded-2xl border border-surface-border p-4 shadow-subtle space-y-4">
         <div className="relative flex items-center">
           <input
             type="text"
             value={inputUrl}
-            onChange={(e) => setInputUrl(e.target.value)}
-            placeholder="Paste a YouTube video or playlist link (e.g. https://www.youtube.com/watch?v=...)"
-            className="w-full pl-4 pr-24 py-3 bg-zinc-50 dark:bg-zinc-900/90 border border-surface-border rounded-lg text-xs font-mono text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all"
+            onChange={handleUrlChange}
+            placeholder="Paste YouTube Video or Playlist URL (e.g. https://www.youtube.com/watch?v=...)"
+            className="w-full px-4 py-3.5 bg-surface hover:bg-surface-hover rounded-xl border border-surface-border focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none font-mono text-sm text-zinc-900 dark:text-zinc-100 transition-all pr-24"
           />
 
-          <button
-            onClick={handlePaste}
-            className="absolute right-2 px-3 py-1.5 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-md text-xs font-medium flex items-center space-x-1.5 transition-colors"
-          >
-            <Clipboard className="w-3.5 h-3.5" />
-            <span>Paste</span>
-          </button>
+          <div className="absolute right-3 flex items-center space-x-2">
+            {isValidating && <Loader2 className="w-5 h-5 text-brand-500 animate-spin" />}
+            {validationResult?.valid && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
+            {validationResult && !validationResult.valid && <AlertCircle className="w-5 h-5 text-red-500" />}
+          </div>
         </div>
 
-        {/* Live Validation Indicator */}
-        {inputUrl.trim().length > 0 && (
-          <div className="text-xs flex items-center space-x-2 pt-1 px-1">
-            {isValidating ? (
-              <span className="text-zinc-400 animate-pulse">Checking URL...</span>
-            ) : urlValidation?.valid ? (
-              <div className="text-emerald-500 flex items-center space-x-1.5 font-medium">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{urlValidation.message}</span>
-                {urlValidation.is_playlist && (
-                  <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px]">
-                    Playlist Detected
-                  </span>
-                )}
-              </div>
-            ) : (
-              <div className="text-amber-500 flex items-center space-x-1.5">
-                <AlertCircle className="w-4 h-4" />
-                <span>{urlValidation?.message || "Invalid YouTube link"}</span>
-              </div>
+        {/* Validation Status / Secondary Playlist Trigger */}
+        {validationResult && (
+          <div className="flex items-center justify-between text-xs font-mono px-2">
+            <span
+              className={
+                validationResult.valid
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-red-500"
+              }
+            >
+              {validationResult.message}
+            </span>
+
+            {/* VIDEO_WITH_PLAYLIST: Secondary Inspect Playlist trigger */}
+            {validationResult.url_type === "VIDEO_WITH_PLAYLIST" && !playlistInfo && (
+              <button
+                onClick={() => handleInspectPlaylist()}
+                disabled={isInspecting}
+                className="text-brand-600 dark:text-brand-400 hover:underline flex items-center space-x-1 font-sans font-medium"
+              >
+                <ListMusic className="w-3.5 h-3.5" />
+                <span>Inspect Full Playlist ({validationResult.playlist_id})</span>
+              </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Progressive Disclosure Configuration Card (Revealed when valid URL detected) */}
-      {urlValidation?.valid && (
-        <div className="bg-surface-card rounded-xl border border-surface-border p-6 shadow-elevated space-y-6 transition-all duration-300">
-          <div className="flex items-center justify-between border-b border-surface-border pb-4">
-            <div className="flex items-center space-x-2">
-              <Sparkles className="w-4 h-4 text-brand-500" />
-              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Download Preferences
-              </h2>
-            </div>
-            {urlValidation.is_playlist && (
-              <div className="flex items-center space-x-1 text-xs text-brand-500 font-medium">
-                <ListVideo className="w-4 h-4" />
-                <span>Playlist configuration</span>
-              </div>
-            )}
+      {/* Feedback Alert */}
+      {inspectionError && (
+        <div className="p-4 rounded-xl border bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 text-sm font-medium flex items-center space-x-2">
+          <AlertCircle className="w-5 h-5" />
+          <span>Playlist Inspection Error: {inspectionError}</span>
+        </div>
+      )}
+
+      {feedbackMsg && (
+        <div
+          className={`p-4 rounded-xl border text-sm font-medium flex items-center space-x-2 ${
+            feedbackMsg.type === "success"
+              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+              : "bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400"
+          }`}
+        >
+          {feedbackMsg.type === "success" ? (
+            <CheckCircle2 className="w-5 h-5" />
+          ) : (
+            <AlertCircle className="w-5 h-5" />
+          )}
+          <span>{feedbackMsg.text}</span>
+        </div>
+      )}
+
+      {/* Playlist Inspection Spinner */}
+      {isInspecting && (
+        <div className="bg-surface-card rounded-2xl border border-surface-border p-8 text-center space-y-4 shadow-subtle">
+          <Loader2 className="w-8 h-8 text-brand-500 animate-spin mx-auto" />
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+              Inspecting Playlist Metadata...
+            </h3>
+            <p className="text-xs text-zinc-500">
+              Enumerating playlist entries efficiently via lightweight yt-dlp inspection.
+            </p>
           </div>
+          <button
+            onClick={handleCancelInspection}
+            className="px-3.5 py-1.5 rounded-lg border border-red-500/30 text-red-500 text-xs font-medium hover:bg-red-500/10 transition-colors"
+          >
+            Cancel Inspection
+          </button>
+        </div>
+      )}
 
-          {/* Media Mode Toggle (Audio vs Video) */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-              Media Type
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setMediaMode("video")}
-                className={`py-3 px-4 rounded-lg border text-xs font-medium flex items-center justify-center space-x-2 transition-all ${
-                  mediaMode === "video"
-                    ? "bg-brand-500/10 border-brand-500 text-brand-600 dark:text-brand-400 font-semibold shadow-subtle"
-                    : "bg-zinc-50 dark:bg-zinc-900 border-surface-border text-zinc-600 dark:text-zinc-400 hover:bg-surface-hover"
-                }`}
-              >
-                <Video className="w-4 h-4" />
-                <span>Video</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMediaMode("audio")}
-                className={`py-3 px-4 rounded-lg border text-xs font-medium flex items-center justify-center space-x-2 transition-all ${
-                  mediaMode === "audio"
-                    ? "bg-brand-500/10 border-brand-500 text-brand-600 dark:text-brand-400 font-semibold shadow-subtle"
-                    : "bg-zinc-50 dark:bg-zinc-900 border-surface-border text-zinc-600 dark:text-zinc-400 hover:bg-surface-hover"
-                }`}
-              >
-                <Music className="w-4 h-4" />
-                <span>Audio Only</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Format & Quality Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Format Selection */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                Format
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {mediaMode === "audio"
-                  ? audioFormats.map((fmt) => (
-                      <button
-                        key={fmt}
-                        type="button"
-                        onClick={() => setAudioFormat(fmt)}
-                        className={`px-3 py-1.5 rounded-md text-xs font-mono font-medium border transition-colors ${
-                          audioFormat === fmt
-                            ? "bg-brand-500 text-white border-brand-500 shadow-subtle"
-                            : "bg-zinc-50 dark:bg-zinc-900 border-surface-border text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600"
-                        }`}
-                      >
-                        {fmt}
-                      </button>
-                    ))
-                  : videoFormats.map((fmt) => (
-                      <button
-                        key={fmt}
-                        type="button"
-                        onClick={() => setVideoFormat(fmt)}
-                        className={`px-3 py-1.5 rounded-md text-xs font-mono font-medium border transition-colors ${
-                          videoFormat === fmt
-                            ? "bg-brand-500 text-white border-brand-500 shadow-subtle"
-                            : "bg-zinc-50 dark:bg-zinc-900 border-surface-border text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600"
-                        }`}
-                      >
-                        {fmt}
-                      </button>
-                    ))}
+      {/* Playlist Inspection Card */}
+      {playlistInfo && (
+        <div className="bg-surface-card rounded-2xl border border-surface-border p-6 shadow-subtle space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-surface-border pb-4 gap-4">
+            <div>
+              <div className="flex items-center space-x-2">
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                  {playlistInfo.title}
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 text-xs font-mono font-semibold">
+                  Playlist
+                </span>
               </div>
-            </div>
-
-            {/* Quality Selection */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                Quality
-              </label>
-              {mediaMode === "audio" ? (
-                <select
-                  value={audioQuality}
-                  onChange={(e) => setAudioQuality(e.target.value as AudioQuality)}
-                  className="w-full py-2 px-3 bg-zinc-50 dark:bg-zinc-900 border border-surface-border rounded-md text-xs text-zinc-800 dark:text-zinc-200 focus:border-brand-500"
-                >
-                  <option value="best">Best available (Recommended)</option>
-                  <option value="320k">320 kbps</option>
-                  <option value="256k">256 kbps</option>
-                  <option value="192k">192 kbps</option>
-                  <option value="128k">128 kbps</option>
-                </select>
-              ) : (
-                <select
-                  value={videoQuality}
-                  onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}
-                  className="w-full py-2 px-3 bg-zinc-50 dark:bg-zinc-900 border border-surface-border rounded-md text-xs text-zinc-800 dark:text-zinc-200 focus:border-brand-500"
-                >
-                  <option value="best">Best available</option>
-                  <option value="2160p">2160p (4K Ultra HD)</option>
-                  <option value="1440p">1440p (2K QHD)</option>
-                  <option value="1080p">1080p (Full HD)</option>
-                  <option value="720p">720p (HD)</option>
-                  <option value="480p">480p</option>
-                  <option value="360p">360p</option>
-                </select>
+              {playlistInfo.uploader && (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  by {playlistInfo.uploader} • {playlistInfo.entry_count} videos ({playlistInfo.available_count} available)
+                </p>
               )}
             </div>
+
+            {/* Selection Toolbar */}
+            <div className="flex items-center space-x-2 text-xs">
+              <span className="font-mono text-zinc-400 mr-2">
+                {selectedEntryIds.size} of {playlistInfo.available_count} selected
+              </span>
+              <button
+                onClick={handleSelectAvailableOnly}
+                className="px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-surface-hover transition-colors"
+              >
+                Available Only
+              </button>
+              <button
+                onClick={handleSelectAll}
+                className="px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-surface-hover transition-colors"
+              >
+                Select All
+              </button>
+              <button
+                onClick={handleDeselectAll}
+                className="px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-surface-hover transition-colors"
+              >
+                Clear
+              </button>
+            </div>
           </div>
 
-          {/* Destination Path Selector */}
+          {/* Entry List Table */}
+          <div className="max-h-96 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+            {playlistInfo.entries.map((entry) => {
+              const isAvailable = entry.availability === "AVAILABLE";
+              const isSelected = selectedEntryIds.has(entry.id);
+
+              return (
+                <div
+                  key={`${entry.id}-${entry.index}`}
+                  onClick={() => toggleSelectEntry(entry.id, isAvailable)}
+                  className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                    !isAvailable
+                      ? "opacity-50 bg-zinc-100/50 dark:bg-zinc-900/50 border-surface-border cursor-not-allowed"
+                      : isSelected
+                      ? "bg-brand-500/5 border-brand-500/30 cursor-pointer"
+                      : "bg-surface border-surface-border hover:bg-surface-hover cursor-pointer"
+                  }`}
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <button
+                      disabled={!isAvailable}
+                      className="text-zinc-400 hover:text-brand-500 disabled:cursor-not-allowed"
+                    >
+                      {isSelected ? (
+                        <CheckSquare className="w-4 h-4 text-brand-500" />
+                      ) : (
+                        <Square className="w-4 h-4 text-zinc-400" />
+                      )}
+                    </button>
+
+                    <span className="text-xs font-mono text-zinc-400 w-8 flex-shrink-0">
+                      #{String(entry.index).padStart(2, "0")}
+                    </span>
+
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                        {entry.title}
+                      </h4>
+                      {entry.duration && (
+                        <span className="text-[10px] font-mono text-zinc-400">
+                          {Math.floor(entry.duration / 60)}:
+                          {String(entry.duration % 60).padStart(2, "0")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <span
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                        isAvailable
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                          : "bg-red-500/10 text-red-500"
+                      }`}
+                    >
+                      {entry.availability}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Action Footer */}
+          <div className="pt-4 border-t border-surface-border flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Format Config Controls */}
+            <div className="flex items-center space-x-3 text-xs">
+              <select
+                value={mediaMode}
+                onChange={(e) => setMediaMode(e.target.value as MediaMode)}
+                className="px-3 py-1.5 rounded-lg bg-surface border border-surface-border font-medium"
+              >
+                <option value="video">Video (MP4)</option>
+                <option value="audio">Audio (MP3)</option>
+              </select>
+
+              <select
+                value={mediaMode === "video" ? videoQuality : audioQuality}
+                onChange={(e) =>
+                  mediaMode === "video"
+                    ? setVideoQuality(e.target.value as VideoQuality)
+                    : setAudioQuality(e.target.value as AudioQuality)
+                }
+                className="px-3 py-1.5 rounded-lg bg-surface border border-surface-border font-medium"
+              >
+                {mediaMode === "video" ? (
+                  <>
+                    <option value="best">Best Quality</option>
+                    <option value="2160p">4K (2160p)</option>
+                    <option value="1080p">1080p Full HD</option>
+                    <option value="720p">720p HD</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="best">Best Audio</option>
+                    <option value="320k">320 kbps</option>
+                    <option value="256k">256 kbps</option>
+                  </>
+                )}
+              </select>
+            </div>
+
+            <button
+              onClick={handleEnqueuePlaylist}
+              disabled={selectedEntryIds.size === 0}
+              className="px-6 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-xs font-semibold flex items-center space-x-2 transition-all disabled:opacity-50 shadow-subtle"
+            >
+              <Download className="w-4 h-4" />
+              <span>Add {selectedEntryIds.size} Selected to Queue →</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Single Video Download Configuration Form (shown when not inspecting a playlist) */}
+      {!playlistInfo && validationResult?.valid && validationResult.url_type !== "PLAYLIST" && (
+        <div className="bg-surface-card rounded-2xl border border-surface-border p-6 shadow-subtle space-y-6">
+          <div className="border-b border-surface-border pb-3">
+            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+              Download Settings
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Media Mode */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                Format Mode
+              </label>
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setMediaMode("video")}
+                  className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center space-x-2 transition-all ${
+                    mediaMode === "video"
+                      ? "bg-brand-500/10 border-brand-500 text-brand-600 dark:text-brand-400"
+                      : "bg-surface border-surface-border text-zinc-600"
+                  }`}
+                >
+                  <Video className="w-4 h-4" />
+                  <span>Video (MP4)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMediaMode("audio")}
+                  className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center space-x-2 transition-all ${
+                    mediaMode === "audio"
+                      ? "bg-brand-500/10 border-brand-500 text-brand-600 dark:text-brand-400"
+                      : "bg-surface border-surface-border text-zinc-600"
+                  }`}
+                >
+                  <Music className="w-4 h-4" />
+                  <span>Audio (MP3)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quality Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                Quality
+              </label>
+              <select
+                value={mediaMode === "video" ? videoQuality : audioQuality}
+                onChange={(e) =>
+                  mediaMode === "video"
+                    ? setVideoQuality(e.target.value as VideoQuality)
+                    : setAudioQuality(e.target.value as AudioQuality)
+                }
+                className="w-full px-3 py-2 bg-surface rounded-lg border border-surface-border text-xs font-medium text-zinc-900 dark:text-zinc-100 outline-none"
+              >
+                {mediaMode === "video" ? (
+                  <>
+                    <option value="best">Best Available Quality</option>
+                    <option value="2160p">2160p (4K)</option>
+                    <option value="1080p">1080p (Full HD)</option>
+                    <option value="720p">720p (HD)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="best">Best Audio Stream</option>
+                    <option value="320k">320 kbps (High Quality)</option>
+                    <option value="256k">256 kbps</option>
+                    <option value="192k">192 kbps</option>
+                  </>
+                )}
+              </select>
+            </div>
+          </div>
+
+          {/* Destination Path Picker */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-              Save To
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              Save Location
             </label>
             <div className="flex items-center space-x-2">
               <input
                 type="text"
                 readOnly
                 value={destinationPath}
-                className="w-full py-2 px-3 bg-zinc-50 dark:bg-zinc-900 border border-surface-border rounded-md text-xs font-mono text-zinc-600 dark:text-zinc-400"
+                className="flex-1 px-3 py-2 bg-surface rounded-lg border border-surface-border text-xs font-mono text-zinc-600 dark:text-zinc-400 outline-none"
               />
               <button
                 type="button"
-                onClick={handleBrowseFolder}
-                className="px-3 py-2 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-md text-xs font-medium flex items-center space-x-1.5 transition-colors whitespace-nowrap"
+                onClick={handlePickFolder}
+                className="px-3 py-2 rounded-lg border border-surface-border hover:bg-surface-hover text-xs font-medium flex items-center space-x-1.5 transition-colors"
               >
-                <Folder className="w-3.5 h-3.5" />
+                <Folder className="w-4 h-4 text-zinc-500" />
                 <span>Browse</span>
               </button>
             </div>
           </div>
 
-          {/* Download Action Trigger */}
-          <div className="pt-2 border-t border-surface-border">
+          {/* Submit Single Download Button */}
+          <div className="pt-2">
             <button
-              onClick={handleStartDownload}
-              className="w-full py-3.5 px-6 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-semibold text-sm shadow-subtle flex items-center justify-center space-x-2 transition-colors"
+              type="button"
+              onClick={handleStartSingleDownload}
+              className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-semibold text-sm flex items-center justify-center space-x-2 shadow-subtle transition-colors"
             >
-              <span>
-                {urlValidation.is_playlist ? "Download Playlist" : "Download Now"}
-              </span>
-              <ArrowRight className="w-4 h-4" />
+              <Download className="w-4 h-4" />
+              <span>Start Download</span>
             </button>
           </div>
         </div>

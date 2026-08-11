@@ -4,6 +4,9 @@ import {
   AppInfo,
   CreateJobParams,
   DownloadJob,
+  EnqueuePlaylistParams,
+  EnqueuePlaylistResult,
+  PlaylistInfo,
   QueueSummary,
   UrlValidationResult,
 } from "../types";
@@ -32,7 +35,6 @@ export class TauriDownloadService implements IDownloadService {
         }
       });
 
-      // Periodically poll queue list
       this.refreshQueue();
     } catch (err) {
       console.warn("Failed to attach Tauri event listeners:", err);
@@ -61,6 +63,20 @@ export class TauriDownloadService implements IDownloadService {
     return pickFolder(defaultPath);
   }
 
+  async inspectPlaylist(url: string, inspectionId: string = "insp-default"): Promise<PlaylistInfo> {
+    return invoke<PlaylistInfo>("inspect_playlist_url", { inspectionId, url });
+  }
+
+  async cancelPlaylistInspection(inspectionId: string = "insp-default"): Promise<boolean> {
+    return invoke<boolean>("cancel_playlist_inspection", { inspectionId });
+  }
+
+  async enqueuePlaylist(params: EnqueuePlaylistParams): Promise<EnqueuePlaylistResult> {
+    const res = await invoke<EnqueuePlaylistResult>("enqueue_playlist_entries", { params });
+    await this.refreshQueue();
+    return res;
+  }
+
   async enqueueJob(params: CreateJobParams): Promise<DownloadJob> {
     const job = await invoke<DownloadJob>("enqueue_download", {
       request: {
@@ -87,7 +103,6 @@ export class TauriDownloadService implements IDownloadService {
   }
 
   async pauseJob(id: string): Promise<void> {
-    // Pausing QUEUED job prevents dispatch
     await invoke("cancel_job", { jobId: id });
     await this.refreshQueue();
   }
