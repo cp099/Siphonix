@@ -26,12 +26,17 @@ struct YtDlpDumpJson {
 
 pub async fn inspect_url(url: &str, engine: &EnginePaths) -> Result<VideoInfo, EngineError> {
     let mut cmd = Command::new(&engine.yt_dlp);
-    cmd.args([
-        "--dump-json",
-        "--no-playlist",
-        "--skip-download",
-        url,
-    ]);
+    let mut args = vec![
+        "--dump-json".to_string(),
+        "--no-playlist".to_string(),
+        "--skip-download".to_string(),
+    ];
+    if std::env::var("SIPHONIX_DEV_INSECURE_SSL").is_ok() {
+        args.push("--no-check-certificates".to_string());
+    }
+    args.push(url.to_string());
+
+    cmd.args(args);
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 

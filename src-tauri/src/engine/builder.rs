@@ -21,6 +21,9 @@ impl CommandBuilder {
 
         // 1. General & Telemetry flags
         args.push("--newline".to_string());
+        if std::env::var("SIPHONIX_DEV_INSECURE_SSL").is_ok() {
+            args.push("--no-check-certificates".to_string());
+        }
         args.push("--no-playlist".to_string());
         args.push("--progress-template".to_string());
         args.push("SIPHONIX_PROGRESS|%(progress.status)s|%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._total_bytes_str)s".to_string());

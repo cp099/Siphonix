@@ -1,9 +1,18 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub enum UrlType {
+    VIDEO,
+    PLAYLIST,
+    VIDEO_WITH_PLAYLIST,
+    INVALID,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UrlValidationResult {
     pub valid: bool,
+    pub url_type: UrlType,
     pub is_playlist: bool,
     pub video_id: Option<String>,
     pub playlist_id: Option<String>,
@@ -17,6 +26,7 @@ pub fn validate_url(url: String) -> UrlValidationResult {
     if trimmed.is_empty() {
         return UrlValidationResult {
             valid: false,
+            url_type: UrlType::INVALID,
             is_playlist: false,
             video_id: None,
             playlist_id: None,
@@ -24,39 +34,48 @@ pub fn validate_url(url: String) -> UrlValidationResult {
         };
     }
 
-    // Check for YouTube playlist
-    let playlist_regex = Regex::new(r"(?:youtube\.com/playlist\?list=)([a-zA-Z0-9_-]+)").unwrap();
-    if let Some(captures) = playlist_regex.captures(trimmed) {
-        if let Some(list_id) = captures.get(1) {
-            return UrlValidationResult {
-                valid: true,
-                is_playlist: true,
-                video_id: None,
-                playlist_id: Some(list_id.as_str().to_string()),
-                message: "Valid YouTube Playlist detected".into(),
-            };
-        }
+    let playlist_param_regex = Regex::new(r"[?&]list=([a-zA-Z0-9_-]+)").unwrap();
+    let video_param_regex = Regex::new(r"(?:v=|shorts/|youtu\.be/)([a-zA-Z0-9_-]{11})").unwrap();
+
+    let found_playlist_id = playlist_param_regex.captures(trimmed).and_then(|c| c.get(1)).map(|m| m.as_str().to_string());
+    let found_video_id = video_param_regex.captures(trimmed).and_then(|c| c.get(1)).map(|m| m.as_str().to_string());
+
+    if found_video_id.is_some() && found_playlist_id.is_some() {
+        return UrlValidationResult {
+            valid: true,
+            url_type: UrlType::VIDEO_WITH_PLAYLIST,
+            is_playlist: true,
+            video_id: found_video_id,
+            playlist_id: found_playlist_id,
+            message: "YouTube Video with Playlist parameter detected".into(),
+        };
     }
 
-    // Check for YouTube video (watch?v=, Shorts, or youtu.be)
-    let video_regex = Regex::new(
-        r"(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)([a-zA-Z0-9_-]{11})"
-    ).unwrap();
+    if found_playlist_id.is_some() && (trimmed.contains("youtube.com/playlist") || trimmed.contains("list=")) {
+        return UrlValidationResult {
+            valid: true,
+            url_type: UrlType::PLAYLIST,
+            is_playlist: true,
+            video_id: None,
+            playlist_id: found_playlist_id,
+            message: "Valid YouTube Playlist detected".into(),
+        };
+    }
 
-    if let Some(captures) = video_regex.captures(trimmed) {
-        if let Some(v_id) = captures.get(1) {
-            return UrlValidationResult {
-                valid: true,
-                is_playlist: false,
-                video_id: Some(v_id.as_str().to_string()),
-                playlist_id: None,
-                message: "Valid YouTube Video detected".into(),
-            };
-        }
+    if let Some(v_id) = found_video_id {
+        return UrlValidationResult {
+            valid: true,
+            url_type: UrlType::VIDEO,
+            is_playlist: false,
+            video_id: Some(v_id),
+            playlist_id: None,
+            message: "Valid YouTube Video detected".into(),
+        };
     }
 
     UrlValidationResult {
         valid: false,
+        url_type: UrlType::INVALID,
         is_playlist: false,
         video_id: None,
         playlist_id: None,
@@ -72,7 +91,7 @@ mod tests {
     fn test_valid_youtube_video_url() {
         let res = validate_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string());
         assert!(res.valid);
-        assert!(!res.is_playlist);
+        assert_eq!(res.url_type, UrlType::VIDEO);
         assert_eq!(res.video_id, Some("dQw4w9WgXcQ".to_string()));
     }
 
@@ -80,7 +99,16 @@ mod tests {
     fn test_valid_youtube_playlist_url() {
         let res = validate_url("https://www.youtube.com/playlist?list=PL3rVcngGfeeqE5H9N9".to_string());
         assert!(res.valid);
-        assert!(res.is_playlist);
+        assert_eq!(res.url_type, UrlType::PLAYLIST);
+        assert_eq!(res.playlist_id, Some("PL3rVcngGfeeqE5H9N9".to_string()));
+    }
+
+    #[test]
+    fn test_video_with_playlist_param_url() {
+        let res = validate_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL3rVcngGfeeqE5H9N9".to_string());
+        assert!(res.valid);
+        assert_eq!(res.url_type, UrlType::VIDEO_WITH_PLAYLIST);
+        assert_eq!(res.video_id, Some("dQw4w9WgXcQ".to_string()));
         assert_eq!(res.playlist_id, Some("PL3rVcngGfeeqE5H9N9".to_string()));
     }
 
@@ -88,6 +116,6 @@ mod tests {
     fn test_invalid_url() {
         let res = validate_url("https://example.com".to_string());
         assert!(!res.valid);
+        assert_eq!(res.url_type, UrlType::INVALID);
     }
 }
-
