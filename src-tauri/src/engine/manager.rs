@@ -56,6 +56,7 @@ impl DownloadManager {
                 eta: None,
                 file_size: None,
                 error_message: None,
+                final_output_path: None,
             },
         );
 
@@ -93,10 +94,13 @@ impl DownloadManager {
             let mut stdout_reader = BufReader::new(stdout).lines();
             let mut stderr_reader = BufReader::new(stderr).lines();
 
+            let mut captured_filepath: Option<String> = None;
             let mut stderr_lines = Vec::new();
 
             while let Ok(Some(line)) = stdout_reader.next_line().await {
-                if let Some(update) = OutputParser::parse_line(&job_id_clone, &line) {
+                if OutputParser::is_filepath_line(&line) {
+                    captured_filepath = Some(line.trim().to_string());
+                } else if let Some(update) = OutputParser::parse_line(&job_id_clone, &line) {
                     let _ = window.emit("download-progress", update);
                 }
             }
@@ -120,6 +124,7 @@ impl DownloadManager {
                                 eta: None,
                                 file_size: None,
                                 error_message: None,
+                                final_output_path: captured_filepath,
                             },
                         );
                     }
@@ -138,6 +143,7 @@ impl DownloadManager {
                                 eta: None,
                                 file_size: None,
                                 error_message: Some(error_msg),
+                                final_output_path: None,
                             },
                         );
                     }
@@ -152,6 +158,7 @@ impl DownloadManager {
                                 eta: None,
                                 file_size: None,
                                 error_message: None,
+                                final_output_path: None,
                             },
                         );
                     }

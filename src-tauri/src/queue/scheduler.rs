@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 use crate::db::DbRepository;
 use crate::engine::builder::DownloadRequest;
 use crate::engine::DownloadManager;
+use crate::library::LibraryService;
 use super::backoff::BackoffPolicy;
 use super::cooldown::{CooldownManager, CooldownStatus};
 use super::job::DownloadJob;
@@ -33,6 +34,7 @@ pub struct QueueScheduler {
     is_paused: Mutex<bool>,
     cooldown_mgr: Mutex<CooldownManager>,
     backoff_policy: BackoffPolicy,
+    library_service: LibraryService,
 }
 
 impl QueueScheduler {
@@ -41,6 +43,7 @@ impl QueueScheduler {
 
         let db_jobs = db.get_all_jobs().await.unwrap_or_default();
         let jobs = db_jobs.into_iter().map(DownloadJob::from_db_job).collect();
+        let library_service = LibraryService::new(Arc::clone(&db));
 
         Arc::new(Self {
             db,
@@ -51,6 +54,7 @@ impl QueueScheduler {
             is_paused: Mutex::new(false),
             cooldown_mgr: Mutex::new(CooldownManager::default()),
             backoff_policy: BackoffPolicy::default(),
+            library_service,
         })
     }
 
@@ -125,6 +129,7 @@ impl QueueScheduler {
                     video_format: Some(job.format.clone()),
                     video_quality: Some(job.quality.clone()),
                     destination_path: job.destination_path.clone(),
+                    options: Some(job.options.clone()),
                 };
 
                 let _ = self.db.update_job_state(
@@ -167,7 +172,17 @@ impl QueueScheduler {
         Ok(job)
     }
 
-    pub async fn handle_progress_event(&self, job_id: &str, state_str: &str, progress: f64, speed: Option<&str>, eta: Option<&str>, file_size: Option<&str>, error_msg: Option<&str>) {
+    pub async fn handle_progress_event(
+        &self,
+        job_id: &str,
+        state_str: &str,
+        progress: f64,
+        speed: Option<&str>,
+        eta: Option<&str>,
+        file_size: Option<&str>,
+        error_msg: Option<&str>,
+        captured_filepath: Option<&str>,
+    ) {
         let mut jobs = self.jobs.lock().await;
         let mut active = self.active_ids.lock().await;
 
@@ -191,6 +206,7 @@ impl QueueScheduler {
 
             if new_state == JobState::COMPLETED {
                 job.completed_at = Some(Utc::now());
+                let _ = self.library_service.register_completed_job(job, captured_filepath).await;
             }
 
             // Handle temporary failure retry logic

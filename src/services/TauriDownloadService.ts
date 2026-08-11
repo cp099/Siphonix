@@ -4,8 +4,12 @@ import {
   AppInfo,
   CreateJobParams,
   DownloadJob,
+  DownloadOptions,
+  DownloadPreset,
   EnqueuePlaylistParams,
   EnqueuePlaylistResult,
+  LibraryItem,
+  MediaMode,
   PlaylistInfo,
   QueueSummary,
   UrlValidationResult,
@@ -142,6 +146,120 @@ export class TauriDownloadService implements IDownloadService {
 
   async setMaxConcurrency(limit: number): Promise<void> {
     await invoke("set_max_concurrency", { limit });
+  }
+
+  async getLibraryItems(
+    search?: string,
+    filterMode?: string,
+    filterStatus?: string,
+    sortBy?: string
+  ): Promise<LibraryItem[]> {
+    const rawItems: any[] = await invoke("get_library_items", {
+      search: search || null,
+      filterMode: filterMode || null,
+      filterStatus: filterStatus || null,
+      sortBy: sortBy || null,
+    });
+    return rawItems.map((item) => ({
+      id: item.id,
+      jobId: item.job_id,
+      sourceVideoId: item.source_video_id ?? undefined,
+      title: item.title,
+      filePath: item.file_path,
+      fileName: item.file_name,
+      fileExtension: item.file_extension,
+      mediaMode: item.media_mode as MediaMode,
+      format: item.format,
+      quality: item.quality,
+      fileSizeBytes: item.file_size_bytes,
+      durationSeconds: item.duration_seconds ?? undefined,
+      thumbnailUrl: item.thumbnail_url ?? undefined,
+      sourceUrl: item.source_url,
+      sourcePlaylistId: item.source_playlist_id ?? undefined,
+      sourcePlaylistTitle: item.source_playlist_title ?? undefined,
+      playlistEntryIndex: item.playlist_entry_index ?? undefined,
+      createdAt: item.created_at,
+      completedAt: item.completed_at,
+      lastVerifiedAt: item.last_verified_at,
+      fileStatus: item.file_status,
+    }));
+  }
+
+  async verifyLibraryStatus(): Promise<LibraryItem[]> {
+    const rawItems: any[] = await invoke("verify_library_status");
+    return rawItems.map((item) => ({
+      id: item.id,
+      jobId: item.job_id,
+      sourceVideoId: item.source_video_id ?? undefined,
+      title: item.title,
+      filePath: item.file_path,
+      fileName: item.file_name,
+      fileExtension: item.file_extension,
+      mediaMode: item.media_mode as MediaMode,
+      format: item.format,
+      quality: item.quality,
+      fileSizeBytes: item.file_size_bytes,
+      durationSeconds: item.duration_seconds ?? undefined,
+      thumbnailUrl: item.thumbnail_url ?? undefined,
+      sourceUrl: item.source_url,
+      sourcePlaylistId: item.source_playlist_id ?? undefined,
+      sourcePlaylistTitle: item.source_playlist_title ?? undefined,
+      playlistEntryIndex: item.playlist_entry_index ?? undefined,
+      createdAt: item.created_at,
+      completedAt: item.completed_at,
+      lastVerifiedAt: item.last_verified_at,
+      fileStatus: item.file_status,
+    }));
+  }
+
+  async openLibraryItem(itemId: string): Promise<void> {
+    await invoke("open_library_item", { itemId });
+  }
+
+  async revealLibraryItem(itemId: string): Promise<void> {
+    await invoke("reveal_library_item", { itemId });
+  }
+
+  async removeLibraryItem(itemId: string): Promise<void> {
+    await invoke("remove_library_item", { itemId });
+  }
+
+  async deleteLibraryFile(id: string): Promise<void> {
+    await invoke("delete_library_file", { id });
+  }
+
+  // --- Phase 6 Options & Presets IPC ---
+
+  async validateDownloadOptions(options: DownloadOptions): Promise<DownloadOptions> {
+    return await invoke<DownloadOptions>("validate_download_options", { options });
+  }
+
+  async getPresets(): Promise<DownloadPreset[]> {
+    return await invoke<DownloadPreset[]>("get_presets");
+  }
+
+  async savePreset(
+    presetId: string | undefined,
+    name: string,
+    description: string | undefined,
+    isDefault: boolean,
+    options: DownloadOptions
+  ): Promise<DownloadPreset> {
+    return await invoke<DownloadPreset>("save_preset", {
+      presetId: presetId || null,
+      name,
+      description: description || null,
+      isDefault,
+      options,
+    });
+  }
+
+  async deletePreset(presetId: string): Promise<void> {
+    await invoke("delete_preset", { presetId });
+  }
+
+  async setDefaultPreset(presetId: string): Promise<void> {
+    await invoke("set_default_preset", { presetId });
   }
 
   public subscribe(listener: (jobs: DownloadJob[]) => void): () => void {

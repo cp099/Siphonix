@@ -44,6 +44,7 @@ fn create_test_job(id: &str) -> DownloadJob {
         source_playlist_id: None,
         source_playlist_title: None,
         playlist_entry_index: None,
+        options: Default::default(),
     }
 }
 

@@ -36,6 +36,7 @@ async fn test_real_video_download_mp4_1080p() {
         video_format: Some("MP4".to_string()),
         video_quality: Some("1080p".to_string()),
         destination_path: dest_dir.to_string_lossy().to_string(),
+        options: None,
     };
 
     let args = CommandBuilder::build_args(&req, &engine);
@@ -79,6 +80,7 @@ async fn test_real_audio_download_mp3_320k() {
         video_format: None,
         video_quality: None,
         destination_path: dest_dir.to_string_lossy().to_string(),
+        options: None,
     };
 
     let args = CommandBuilder::build_args(&req, &engine);
@@ -122,6 +124,7 @@ async fn test_real_cancellation_lifecycle() {
         video_format: Some("MP4".to_string()),
         video_quality: Some("best".to_string()),
         destination_path: dest_dir.to_string_lossy().to_string(),
+        options: None,
     };
 
     let args = CommandBuilder::build_args(&req, &engine);

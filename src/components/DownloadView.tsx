@@ -17,21 +17,64 @@ import { TauriDownloadService } from "../services/TauriDownloadService";
 import {
   AudioFormat,
   AudioQuality,
+  DownloadOptions,
   MediaMode,
   PlaylistInfo,
   VideoFormat,
   VideoQuality,
 } from "../types";
+import { AdvancedOptionsDrawer } from "./AdvancedOptionsDrawer";
 
 export const DownloadView: React.FC = () => {
   const { url, setUrl, settings } = useAppStore();
   const [inputUrl, setInputUrl] = useState(url);
   const [mediaMode, setMediaMode] = useState<MediaMode>("video");
-  const [audioFormat] = useState<AudioFormat>("MP3");
+  const [audioFormat, setAudioFormat] = useState<AudioFormat>("MP3");
   const [audioQuality, setAudioQuality] = useState<AudioQuality>("best");
-  const [videoFormat] = useState<VideoFormat>("MP4");
+  const [videoFormat, setVideoFormat] = useState<VideoFormat>("MP4");
   const [videoQuality, setVideoQuality] = useState<VideoQuality>("1080p");
   const [destinationPath, setDestinationPath] = useState(settings.defaultDestination);
+
+  const [showAdvancedDrawer, setShowAdvancedDrawer] = useState(false);
+  const [downloadOptions, setDownloadOptions] = useState<DownloadOptions>({
+    media_mode: "video",
+    video: {
+      resolution: "1080p",
+      frame_rate: "auto",
+      codec_preference: "auto",
+      hdr_preference: "auto",
+      selection_mode: "prefer",
+    },
+    audio: {
+      format: "MP3",
+      quality: "best",
+      codec_preference: "auto",
+    },
+    output: {
+      container: "MP4",
+      destination_path: settings.defaultDestination,
+      naming_preset: "simple",
+      folder_organization: "flat",
+      overwrite_policy: "ask",
+    },
+    metadata: {
+      embed_metadata: true,
+      embed_thumbnail: true,
+      write_metadata_json: false,
+    },
+    subtitles: {
+      enabled: false,
+      languages: ["en"],
+      format: "srt",
+      embed_in_video: false,
+    },
+    network: {
+      concurrent_fragments: "auto",
+    },
+    expert: {
+      format_sort_strategy: "resolution_first",
+    },
+  });
 
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<{
@@ -149,6 +192,14 @@ export const DownloadView: React.FC = () => {
   // Submit Single Download
   const handleStartSingleDownload = async () => {
     try {
+      const effectiveOpts: DownloadOptions = {
+        ...downloadOptions,
+        media_mode: mediaMode,
+        video: { ...downloadOptions.video, resolution: videoQuality },
+        audio: { ...downloadOptions.audio, format: audioFormat, quality: audioQuality },
+        output: { ...downloadOptions.output, container: videoFormat, destination_path: destinationPath },
+      };
+
       await downloadService.enqueueJob({
         url: inputUrl,
         mediaMode,
@@ -157,8 +208,9 @@ export const DownloadView: React.FC = () => {
         videoFormat,
         videoQuality,
         destinationPath,
+        options: effectiveOpts,
       });
-      setFeedbackMsg({ type: "success", text: "Download added to queue!" });
+      setFeedbackMsg({ type: "success", text: "Download added to queue with advanced options snapshot!" });
     } catch (err) {
       setFeedbackMsg({ type: "error", text: err instanceof Error ? err.message : String(err) });
     }
@@ -171,6 +223,14 @@ export const DownloadView: React.FC = () => {
     const selectedEntries = playlistInfo.entries.filter((e) => selectedEntryIds.has(e.id));
 
     try {
+      const effectiveOpts: DownloadOptions = {
+        ...downloadOptions,
+        media_mode: mediaMode,
+        video: { ...downloadOptions.video, resolution: videoQuality },
+        audio: { ...downloadOptions.audio, format: audioFormat, quality: audioQuality },
+        output: { ...downloadOptions.output, container: videoFormat, destination_path: destinationPath },
+      };
+
       if (downloadService instanceof TauriDownloadService) {
         const res = await downloadService.enqueuePlaylist({
           playlist_id: playlistInfo.id,
@@ -182,6 +242,7 @@ export const DownloadView: React.FC = () => {
           video_format: videoFormat,
           video_quality: videoQuality,
           destination_path: destinationPath,
+          options: effectiveOpts,
         });
 
         let msg = `${res.added_count} items added to queue.`;
@@ -478,7 +539,10 @@ export const DownloadView: React.FC = () => {
               <div className="flex space-x-2">
                 <button
                   type="button"
-                  onClick={() => setMediaMode("video")}
+                  onClick={() => {
+                    setMediaMode("video");
+                    setVideoFormat("MP4");
+                  }}
                   className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center space-x-2 transition-all ${
                     mediaMode === "video"
                       ? "bg-brand-500/10 border-brand-500 text-brand-600 dark:text-brand-400"
@@ -486,11 +550,14 @@ export const DownloadView: React.FC = () => {
                   }`}
                 >
                   <Video className="w-4 h-4" />
-                  <span>Video (MP4)</span>
+                  <span>Video ({videoFormat})</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMediaMode("audio")}
+                  onClick={() => {
+                    setMediaMode("audio");
+                    setAudioFormat("MP3");
+                  }}
                   className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center space-x-2 transition-all ${
                     mediaMode === "audio"
                       ? "bg-brand-500/10 border-brand-500 text-brand-600 dark:text-brand-400"
@@ -498,7 +565,7 @@ export const DownloadView: React.FC = () => {
                   }`}
                 >
                   <Music className="w-4 h-4" />
-                  <span>Audio (MP3)</span>
+                  <span>Audio ({audioFormat})</span>
                 </button>
               </div>
             </div>
@@ -559,6 +626,25 @@ export const DownloadView: React.FC = () => {
             </div>
           </div>
 
+          {/* Progressive Disclosure Toggle */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setShowAdvancedDrawer(!showAdvancedDrawer)}
+              className="w-full py-2 px-3 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-xs font-medium text-slate-300 flex items-center justify-center space-x-1.5 transition-colors"
+            >
+              <span>{showAdvancedDrawer ? "Advanced Options ▲" : "Advanced Options ▾"}</span>
+            </button>
+          </div>
+
+          {/* Advanced Options Drawer */}
+          <AdvancedOptionsDrawer
+            isOpen={showAdvancedDrawer}
+            onClose={() => setShowAdvancedDrawer(false)}
+            options={downloadOptions}
+            onChange={(updated) => setDownloadOptions(updated)}
+          />
+
           {/* Submit Single Download Button */}
           <div className="pt-2">
             <button
@@ -567,7 +653,7 @@ export const DownloadView: React.FC = () => {
               className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-semibold text-sm flex items-center justify-center space-x-2 shadow-subtle transition-colors"
             >
               <Download className="w-4 h-4" />
-              <span>Start Download</span>
+              <span>Download Now</span>
             </button>
           </div>
         </div>

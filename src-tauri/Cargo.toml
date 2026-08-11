@@ -20,6 +20,10 @@ rand = "0.8"
 tracing = "0.1"
 thiserror = "2.0"
 regex = "1.11"
+opener = "0.7"
+
+[dev-dependencies]
+tempfile = "3.10"
 
 [lib]
 name = "siphonix_lib"

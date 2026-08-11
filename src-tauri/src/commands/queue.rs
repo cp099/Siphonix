@@ -3,6 +3,7 @@ use tauri::State;
 use chrono::Utc;
 
 use crate::engine::builder::DownloadRequest;
+use crate::engine::options::DownloadOptions;
 use crate::queue::job::DownloadJob;
 use crate::queue::scheduler::QueueScheduler;
 use crate::queue::state::JobState;
@@ -12,16 +13,37 @@ pub async fn enqueue_download(
     scheduler: State<'_, Arc<QueueScheduler>>,
     request: DownloadRequest,
 ) -> Result<DownloadJob, String> {
-    let is_audio = request.media_mode == "audio";
+    let mut opts = request.options.clone().unwrap_or_else(|| {
+        let mut d = DownloadOptions::default();
+        d.media_mode = request.media_mode.clone();
+        d.output.destination_path = request.destination_path.clone();
+        if let Some(ref vf) = request.video_format {
+            d.output.container = vf.clone();
+        }
+        if let Some(ref vq) = request.video_quality {
+            d.video.resolution = vq.clone();
+        }
+        if let Some(ref af) = request.audio_format {
+            d.audio.format = af.clone();
+        }
+        if let Some(ref aq) = request.audio_quality {
+            d.audio.quality = aq.clone();
+        }
+        d
+    });
+
+    opts.validate().map_err(|e| e.to_string())?;
+
+    let is_audio = opts.media_mode == "audio";
     let format_str = if is_audio {
-        request.audio_format.clone().unwrap_or_else(|| "MP3".to_string())
+        opts.audio.format.clone()
     } else {
-        request.video_format.clone().unwrap_or_else(|| "MP4".to_string())
+        opts.output.container.clone()
     };
     let quality_str = if is_audio {
-        request.audio_quality.clone().unwrap_or_else(|| "best".to_string())
+        opts.audio.quality.clone()
     } else {
-        request.video_quality.clone().unwrap_or_else(|| "1080p".to_string())
+        opts.video.resolution.clone()
     };
 
     let job = DownloadJob {
@@ -29,10 +51,10 @@ pub async fn enqueue_download(
         url: request.url.clone(),
         title: "YouTube Download".to_string(),
         thumbnail_url: None,
-        media_mode: request.media_mode.clone(),
+        media_mode: opts.media_mode.clone(),
         format: format_str,
         quality: quality_str,
-        destination_path: request.destination_path.clone(),
+        destination_path: opts.output.destination_path.clone(),
         state: JobState::QUEUED,
         progress: 0.0,
         download_speed: None,
@@ -50,6 +72,7 @@ pub async fn enqueue_download(
         source_playlist_id: None,
         source_playlist_title: None,
         playlist_entry_index: None,
+        options: opts,
     };
 
     scheduler.enqueue_job(job).await

@@ -9,11 +9,21 @@ pub struct ProgressUpdate {
     pub eta: Option<String>,
     pub file_size: Option<String>,
     pub error_message: Option<String>,
+    pub final_output_path: Option<String>,
 }
 
 pub struct OutputParser;
 
 impl OutputParser {
+    pub fn is_filepath_line(line: &str) -> bool {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('[') || trimmed.starts_with("SIPHONIX_PROGRESS|") || trimmed.starts_with("WARNING:") || trimmed.starts_with("ERROR:") {
+            return false;
+        }
+        // Absolute path check (starting with / on Unix or C:\ on Windows)
+        std::path::Path::new(trimmed).is_absolute()
+    }
+
     pub fn parse_line(job_id: &str, line: &str) -> Option<ProgressUpdate> {
         let trimmed = line.trim();
 
@@ -42,6 +52,7 @@ impl OutputParser {
                     eta,
                     file_size,
                     error_message: None,
+                    final_output_path: None,
                 });
             }
         }
@@ -56,6 +67,7 @@ impl OutputParser {
                 eta: None,
                 file_size: None,
                 error_message: None,
+                final_output_path: None,
             });
         }
 

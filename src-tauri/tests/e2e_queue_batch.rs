@@ -60,6 +60,7 @@ async fn test_real_world_batch_and_crash_recovery() {
             source_playlist_id: None,
             source_playlist_title: None,
             playlist_entry_index: None,
+            options: Default::default(),
         };
 
         let enqueued = scheduler.enqueue_job(job).await.expect("Enqueue failed");
@@ -92,6 +93,7 @@ async fn test_real_world_batch_and_crash_recovery() {
         video_format: Some("MP4".to_string()),
         video_quality: Some("720p".to_string()),
         destination_path: dest_dir.to_string_lossy().to_string(),
+        options: None,
     };
 
     let args1 = siphonix_lib::engine::builder::CommandBuilder::build_args(&req1, &engine);
@@ -100,11 +102,11 @@ async fn test_real_world_batch_and_crash_recovery() {
     let out1 = cmd1.output().await.expect("Failed download 1");
     assert!(out1.status.success(), "Download 1 failed");
 
-    scheduler.handle_progress_event("batch-job-1", "COMPLETED", 100.0, None, None, None, None).await;
+    scheduler.handle_progress_event("batch-job-1", "COMPLETED", 100.0, None, None, None, None, None).await;
 
     println!("--- Step 4: Testing SQLite Restart & Crash Recovery ---");
     // Simulate app crash while job 2 was DOWNLOADING
-    scheduler.handle_progress_event("batch-job-2", "DOWNLOADING", 45.0, Some("2.5 MB/s"), Some("00:10"), None, None).await;
+    scheduler.handle_progress_event("batch-job-2", "DOWNLOADING", 45.0, Some("2.5 MB/s"), Some("00:10"), None, None, None).await;
 
     // Drop previous repository and re-initialize from disk (simulating app restart)
     drop(scheduler);

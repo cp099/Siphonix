@@ -75,6 +75,7 @@ async fn test_playlist_duplicate_detection() {
         source_playlist_id: Some("PL3rVcngGfeeqE5H9N9".to_string()),
         source_playlist_title: Some("Test Playlist".to_string()),
         playlist_entry_index: Some(1),
+        options: Default::default(),
     };
 
     db.insert_job(&existing_job.to_db_job()).await.unwrap();

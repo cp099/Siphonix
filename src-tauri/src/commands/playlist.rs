@@ -10,6 +10,8 @@ use crate::queue::job::DownloadJob;
 use crate::queue::scheduler::QueueScheduler;
 use crate::queue::state::JobState;
 
+use crate::engine::options::DownloadOptions;
+
 #[derive(Debug, Deserialize)]
 pub struct EnqueuePlaylistParams {
     pub playlist_id: String,
@@ -21,6 +23,7 @@ pub struct EnqueuePlaylistParams {
     pub video_format: Option<String>,
     pub video_quality: Option<String>,
     pub destination_path: String,
+    pub options: Option<DownloadOptions>,
 }
 
 #[derive(Debug, Serialize)]
@@ -56,16 +59,37 @@ pub async fn enqueue_playlist_entries(
     db: State<'_, Arc<DbRepository>>,
     params: EnqueuePlaylistParams,
 ) -> Result<EnqueuePlaylistResult, String> {
-    let is_audio = params.media_mode == "audio";
+    let mut opts = params.options.clone().unwrap_or_else(|| {
+        let mut d = DownloadOptions::default();
+        d.media_mode = params.media_mode.clone();
+        d.output.destination_path = params.destination_path.clone();
+        if let Some(ref vf) = params.video_format {
+            d.output.container = vf.clone();
+        }
+        if let Some(ref vq) = params.video_quality {
+            d.video.resolution = vq.clone();
+        }
+        if let Some(ref af) = params.audio_format {
+            d.audio.format = af.clone();
+        }
+        if let Some(ref aq) = params.audio_quality {
+            d.audio.quality = aq.clone();
+        }
+        d
+    });
+
+    opts.validate().map_err(|e| e.to_string())?;
+
+    let is_audio = opts.media_mode == "audio";
     let format_str = if is_audio {
-        params.audio_format.unwrap_or_else(|| "MP3".to_string())
+        opts.audio.format.clone()
     } else {
-        params.video_format.unwrap_or_else(|| "MP4".to_string())
+        opts.output.container.clone()
     };
     let quality_str = if is_audio {
-        params.audio_quality.unwrap_or_else(|| "best".to_string())
+        opts.audio.quality.clone()
     } else {
-        params.video_quality.unwrap_or_else(|| "1080p".to_string())
+        opts.video.resolution.clone()
     };
 
     // Filter available entries
@@ -92,10 +116,10 @@ pub async fn enqueue_playlist_entries(
             url: entry.url.clone(),
             title: entry.title.clone(),
             thumbnail_url: entry.thumbnail_url.clone(),
-            media_mode: params.media_mode.clone(),
+            media_mode: opts.media_mode.clone(),
             format: format_str.clone(),
             quality: quality_str.clone(),
-            destination_path: params.destination_path.clone(),
+            destination_path: opts.output.destination_path.clone(),
             state: JobState::QUEUED,
             progress: 0.0,
             download_speed: None,
@@ -113,6 +137,7 @@ pub async fn enqueue_playlist_entries(
             source_playlist_id: Some(params.playlist_id.clone()),
             source_playlist_title: Some(params.playlist_title.clone()),
             playlist_entry_index: Some(entry.index as u32),
+            options: opts.clone(),
         };
 
         scheduler.enqueue_job(job).await.map_err(|e| e.to_string())?;

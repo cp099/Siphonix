@@ -33,6 +33,44 @@ pub struct DbJob {
     pub source_playlist_id: Option<String>,
     pub source_playlist_title: Option<String>,
     pub playlist_entry_index: Option<i64>,
+    pub options_json: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct DbLibraryItem {
+    pub id: String,
+    pub job_id: String,
+    pub source_video_id: Option<String>,
+    pub title: String,
+    pub file_path: String,
+    pub file_name: String,
+    pub file_extension: String,
+    pub media_mode: String,
+    pub format: String,
+    pub quality: String,
+    pub file_size_bytes: i64,
+    pub duration_seconds: Option<i64>,
+    pub thumbnail_url: Option<String>,
+    pub source_url: String,
+    pub source_playlist_id: Option<String>,
+    pub source_playlist_title: Option<String>,
+    pub playlist_entry_index: Option<i64>,
+    pub created_at: String,
+    pub completed_at: String,
+    pub last_verified_at: String,
+    pub file_status: String,
+    pub options_json: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct DbPreset {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub is_default: i64,
+    pub options_json: String,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 pub struct DbRepository {
@@ -70,8 +108,8 @@ impl DbRepository {
                 id, url, title, thumbnail_url, media_mode, format, quality, destination_path,
                 state, progress, download_speed, eta, file_size, error_message, last_error_category,
                 retry_count, max_retries, next_retry_at, created_at, started_at, completed_at,
-                source_video_id, source_playlist_id, source_playlist_title, playlist_entry_index
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                source_video_id, source_playlist_id, source_playlist_title, playlist_entry_index, options_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&job.id)
@@ -99,6 +137,7 @@ impl DbRepository {
         .bind(&job.source_playlist_id)
         .bind(&job.source_playlist_title)
         .bind(job.playlist_entry_index)
+        .bind(&job.options_json)
         .execute(&self.pool)
         .await?;
 
@@ -182,7 +221,7 @@ impl DbRepository {
             SELECT id, url, title, thumbnail_url, media_mode, format, quality, destination_path,
                    state, progress, download_speed, eta, file_size, error_message, last_error_category,
                    retry_count, max_retries, next_retry_at, created_at, started_at, completed_at,
-                   source_video_id, source_playlist_id, source_playlist_title, playlist_entry_index
+                   source_video_id, source_playlist_id, source_playlist_title, playlist_entry_index, options_json
             FROM jobs
             ORDER BY created_at DESC
             "#
@@ -199,7 +238,7 @@ impl DbRepository {
             SELECT id, url, title, thumbnail_url, media_mode, format, quality, destination_path,
                    state, progress, download_speed, eta, file_size, error_message, last_error_category,
                    retry_count, max_retries, next_retry_at, created_at, started_at, completed_at,
-                   source_video_id, source_playlist_id, source_playlist_title, playlist_entry_index
+                   source_video_id, source_playlist_id, source_playlist_title, playlist_entry_index, options_json
             FROM jobs
             WHERE state = 'COMPLETED'
             ORDER BY completed_at DESC
@@ -248,5 +287,220 @@ impl DbRepository {
         .await?;
 
         Ok(res.rows_affected() as usize)
+    }
+
+    /// Insert a new LibraryItem record into library_items table (or update if file_path exists)
+    pub async fn insert_library_item(&self, item: &DbLibraryItem) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+            INSERT INTO library_items (
+                id, job_id, source_video_id, title, file_path, file_name, file_extension,
+                media_mode, format, quality, file_size_bytes, duration_seconds, thumbnail_url,
+                source_url, source_playlist_id, source_playlist_title, playlist_entry_index,
+                created_at, completed_at, last_verified_at, file_status, options_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(file_path) DO UPDATE SET
+                title = excluded.title,
+                file_size_bytes = excluded.file_size_bytes,
+                last_verified_at = excluded.last_verified_at,
+                file_status = excluded.file_status,
+                options_json = excluded.options_json
+            "#
+        )
+        .bind(&item.id)
+        .bind(&item.job_id)
+        .bind(&item.source_video_id)
+        .bind(&item.title)
+        .bind(&item.file_path)
+        .bind(&item.file_name)
+        .bind(&item.file_extension)
+        .bind(&item.media_mode)
+        .bind(&item.format)
+        .bind(&item.quality)
+        .bind(item.file_size_bytes)
+        .bind(item.duration_seconds)
+        .bind(&item.thumbnail_url)
+        .bind(&item.source_url)
+        .bind(&item.source_playlist_id)
+        .bind(&item.source_playlist_title)
+        .bind(item.playlist_entry_index)
+        .bind(&item.created_at)
+        .bind(&item.completed_at)
+        .bind(&item.last_verified_at)
+        .bind(&item.file_status)
+        .bind(&item.options_json)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Query library items with optional search, filter, and sort
+    pub async fn get_library_items(
+        &self,
+        search: Option<&str>,
+        filter_mode: Option<&str>,
+        filter_status: Option<&str>,
+        sort_by: Option<&str>,
+    ) -> Result<Vec<DbLibraryItem>, sqlx::Error> {
+        let mut query_str = String::from(
+            "SELECT id, job_id, source_video_id, title, file_path, file_name, file_extension, \
+             media_mode, format, quality, file_size_bytes, duration_seconds, thumbnail_url, \
+             source_url, source_playlist_id, source_playlist_title, playlist_entry_index, \
+             created_at, completed_at, last_verified_at, file_status, options_json FROM library_items WHERE 1=1",
+        );
+
+        if let Some(s) = search {
+            if !s.trim().is_empty() {
+                query_str.push_str(" AND (title LIKE '%");
+                query_str.push_str(&s.replace('\'', "''"));
+                query_str.push_str("%' OR file_name LIKE '%");
+                query_str.push_str(&s.replace('\'', "''"));
+                query_str.push_str("%' OR source_video_id LIKE '%");
+                query_str.push_str(&s.replace('\'', "''"));
+                query_str.push_str("%' OR source_playlist_title LIKE '%");
+                query_str.push_str(&s.replace('\'', "''"));
+                query_str.push_str("%')");
+            }
+        }
+
+        if let Some(m) = filter_mode {
+            if m != "ALL" && !m.trim().is_empty() {
+                query_str.push_str(" AND media_mode = '");
+                query_str.push_str(&m.replace('\'', "''"));
+                query_str.push_str("'");
+            }
+        }
+
+        if let Some(st) = filter_status {
+            if st != "ALL" && !st.trim().is_empty() {
+                query_str.push_str(" AND file_status = '");
+                query_str.push_str(&st.replace('\'', "''"));
+                query_str.push_str("'");
+            }
+        }
+
+        match sort_by {
+            Some("oldest") => query_str.push_str(" ORDER BY completed_at ASC"),
+            Some("title_asc") => query_str.push_str(" ORDER BY title ASC"),
+            Some("title_desc") => query_str.push_str(" ORDER BY title DESC"),
+            Some("size_desc") => query_str.push_str(" ORDER BY file_size_bytes DESC"),
+            Some("duration_desc") => query_str.push_str(" ORDER BY duration_seconds DESC"),
+            _ => query_str.push_str(" ORDER BY completed_at DESC"),
+        }
+
+        let rows = sqlx::query_as::<_, DbLibraryItem>(&query_str)
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(rows)
+    }
+
+    pub async fn get_library_item_by_id(&self, id: &str) -> Result<Option<DbLibraryItem>, sqlx::Error> {
+        let row = sqlx::query_as::<_, DbLibraryItem>(
+            "SELECT id, job_id, source_video_id, title, file_path, file_name, file_extension, \
+             media_mode, format, quality, file_size_bytes, duration_seconds, thumbnail_url, \
+             source_url, source_playlist_id, source_playlist_title, playlist_entry_index, \
+             created_at, completed_at, last_verified_at, file_status, options_json FROM library_items WHERE id = ?"
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row)
+    }
+
+    pub async fn update_library_item_status(&self, id: &str, status: &str) -> Result<(), sqlx::Error> {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query(
+            "UPDATE library_items SET file_status = ?, last_verified_at = ? WHERE id = ?"
+        )
+        .bind(status)
+        .bind(&now)
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn delete_library_item(&self, id: &str) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM library_items WHERE id = ?")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    // --- Preset Operations ---
+
+    pub async fn insert_preset(&self, preset: &DbPreset) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+            INSERT INTO presets (id, name, description, is_default, options_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                description = excluded.description,
+                is_default = excluded.is_default,
+                options_json = excluded.options_json,
+                updated_at = excluded.updated_at
+            "#
+        )
+        .bind(&preset.id)
+        .bind(&preset.name)
+        .bind(&preset.description)
+        .bind(preset.is_default)
+        .bind(&preset.options_json)
+        .bind(&preset.created_at)
+        .bind(&preset.updated_at)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn get_presets(&self) -> Result<Vec<DbPreset>, sqlx::Error> {
+        sqlx::query_as::<_, DbPreset>(
+            "SELECT id, name, description, is_default, options_json, created_at, updated_at FROM presets ORDER BY is_default DESC, name ASC"
+        )
+        .fetch_all(&self.pool)
+        .await
+    }
+
+    pub async fn get_preset_by_id(&self, id: &str) -> Result<Option<DbPreset>, sqlx::Error> {
+        sqlx::query_as::<_, DbPreset>(
+            "SELECT id, name, description, is_default, options_json, created_at, updated_at FROM presets WHERE id = ?"
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+    }
+
+    pub async fn delete_preset(&self, id: &str) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM presets WHERE id = ?")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Enforce single default preset using an atomic SQLite transaction
+    pub async fn set_default_preset(&self, id: &str) -> Result<(), sqlx::Error> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query("UPDATE presets SET is_default = 0")
+            .execute(&mut *tx)
+            .await?;
+
+        sqlx::query("UPDATE presets SET is_default = 1 WHERE id = ?")
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok(())
     }
 }
