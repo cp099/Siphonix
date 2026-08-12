@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod db;
+pub mod diagnostics;
 pub mod engine;
 pub mod library;
 pub mod queue;
@@ -10,13 +11,15 @@ use tauri::Manager;
 
 pub use commands::{
     cancel_download, cancel_job, cancel_playlist_inspection, delete_library_file, delete_preset,
-    enqueue_download, enqueue_playlist_entries, force_resume_cooldown, get_app_info, get_engine_status,
-    get_library_items, get_library_jobs, get_presets, get_queue_jobs, get_runtime_status, inspect_playlist_url,
-    inspect_video_url, open_library_item, pause_queue, refresh_runtime_status, remove_library_item,
+    enqueue_download, enqueue_playlist_entries, force_resume_cooldown, generate_diagnostic_report,
+    get_app_info, get_diagnostics, get_engine_status, get_library_items, get_library_jobs, get_presets,
+    get_queue_jobs, get_runtime_status, get_system_health, inspect_playlist_url, inspect_video_url,
+    open_library_item, pause_queue, recover_interrupted_jobs, refresh_runtime_status, remove_library_item,
     resume_queue, reveal_library_item, save_preset, set_default_preset, set_max_concurrency, start_download,
-    validate_download_options, validate_url, verify_library_status,
+    validate_download_options, validate_url, verify_database, verify_library, verify_library_status,
 };
 pub use db::DbRepository;
+pub use diagnostics::DiagnosticsManager;
 pub use engine::{DownloadManager, PlaylistInspector};
 pub use library::LibraryService;
 pub use queue::QueueScheduler;
@@ -35,6 +38,7 @@ pub fn run() {
             let db_path = app_data_dir.join("siphonix.db");
 
             let engine_manager = Arc::new(EngineManager::new(&app_data_dir, None));
+            let diagnostics_manager = Arc::new(DiagnosticsManager::new(&app_data_dir, engine_manager.clone()));
             let download_manager = DownloadManager::new_with_runtime(engine_manager.clone());
             let playlist_inspector = PlaylistInspector::new();
 
@@ -49,6 +53,7 @@ pub fn run() {
                 engine_manager.refresh_status().await;
 
                 app.manage(engine_manager);
+                app.manage(diagnostics_manager);
                 app.manage(download_manager);
                 app.manage(playlist_inspector);
                 app.manage(db_arc);
@@ -90,7 +95,13 @@ pub fn run() {
             delete_preset,
             set_default_preset,
             get_runtime_status,
-            refresh_runtime_status
+            refresh_runtime_status,
+            get_diagnostics,
+            get_system_health,
+            generate_diagnostic_report,
+            verify_database,
+            verify_library,
+            recover_interrupted_jobs
         ])
         .run(tauri::generate_context!())
         .expect("error while running siphonix application");

@@ -73,6 +73,57 @@ export interface RuntimeStatus {
   diagnostics: Diagnostic[];
 }
 
+export type DiagnosticSeverity = "DEBUG" | "INFO" | "WARN" | "ERROR" | "CRITICAL";
+
+export interface DiagnosticEvent {
+  id: string;
+  timestamp: string;
+  severity: DiagnosticSeverity;
+  subsystem: string;
+  event_type: string;
+  job_id?: string;
+  engine_info?: string;
+  message: string;
+  context?: Record<string, any>;
+}
+
+export type SystemHealthStatus = "HEALTHY" | "DEGRADED" | "ACTION_REQUIRED";
+
+export interface SubsystemHealth {
+  name: string;
+  status: SystemHealthStatus;
+  message: string;
+}
+
+export interface SystemHealth {
+  overall_status: SystemHealthStatus;
+  runtime: SubsystemHealth;
+  database: SubsystemHealth;
+  queue: SubsystemHealth;
+  library: SubsystemHealth;
+  active_issues_count: number;
+}
+
+export interface DiagnosticReport {
+  app_name: string;
+  app_version: string;
+  platform: string;
+  architecture: string;
+  generated_at: string;
+  system_health: SystemHealth;
+  runtime_status: RuntimeStatus;
+  total_jobs_count: number;
+  total_library_items_count: number;
+  recent_events: DiagnosticEvent[];
+}
+
+export interface RecoveryResult {
+  subsystem: string;
+  success: boolean;
+  message: string;
+  items_affected: number;
+}
+
 export const UrlInputSchema = z.string().trim().min(1, "URL cannot be empty").refine(
   (val) => val.includes("youtube.com/") || val.includes("youtu.be/"),
   { message: "Please enter a valid YouTube video or playlist link" }

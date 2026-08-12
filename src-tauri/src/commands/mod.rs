@@ -1,3 +1,4 @@
+pub mod diagnostics;
 pub mod download;
 pub mod info;
 pub mod library;
@@ -7,6 +8,10 @@ pub mod queue;
 pub mod runtime;
 pub mod url;
 
+pub use diagnostics::{
+    generate_diagnostic_report, get_diagnostics, get_system_health, recover_interrupted_jobs,
+    verify_database, verify_library,
+};
 pub use download::{cancel_download, get_engine_status, inspect_video_url, start_download};
 pub use info::get_app_info;
 pub use library::{delete_library_file, get_library_items, open_library_item, remove_library_item, reveal_library_item, verify_library_status};

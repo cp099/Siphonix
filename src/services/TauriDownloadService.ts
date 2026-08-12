@@ -11,8 +11,12 @@ import {
   LibraryItem,
   MediaMode,
   PlaylistInfo,
+  DiagnosticEvent,
+  DiagnosticReport,
   QueueSummary,
+  RecoveryResult,
   RuntimeStatus,
+  SystemHealth,
   UrlValidationResult,
 } from "../types";
 import { IDownloadService } from "./DownloadService";
@@ -271,6 +275,32 @@ export class TauriDownloadService implements IDownloadService {
 
   async refreshRuntimeStatus(): Promise<RuntimeStatus> {
     return await invoke<RuntimeStatus>("refresh_runtime_status");
+  }
+
+  // --- Phase 8 Diagnostics & Reliability IPC ---
+
+  async getDiagnostics(limit: number = 50): Promise<DiagnosticEvent[]> {
+    return await invoke<DiagnosticEvent[]>("get_diagnostics", { limit });
+  }
+
+  async getSystemHealth(): Promise<SystemHealth> {
+    return await invoke<SystemHealth>("get_system_health");
+  }
+
+  async generateDiagnosticReport(): Promise<DiagnosticReport> {
+    return await invoke<DiagnosticReport>("generate_diagnostic_report");
+  }
+
+  async verifyDatabase(): Promise<RecoveryResult> {
+    return await invoke<RecoveryResult>("verify_database");
+  }
+
+  async verifyLibrary(): Promise<RecoveryResult> {
+    return await invoke<RecoveryResult>("verify_library");
+  }
+
+  async recoverInterruptedJobs(): Promise<RecoveryResult> {
+    return await invoke<RecoveryResult>("recover_interrupted_jobs");
   }
 
   public subscribe(listener: (jobs: DownloadJob[]) => void): () => void {

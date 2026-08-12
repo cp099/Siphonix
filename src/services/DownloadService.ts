@@ -19,6 +19,12 @@ export interface IDownloadService {
   retryJob(id: string): Promise<void>;
   getRuntimeStatus?(): Promise<any>;
   refreshRuntimeStatus?(): Promise<any>;
+  getDiagnostics?(limit?: number): Promise<any>;
+  getSystemHealth?(): Promise<any>;
+  generateDiagnosticReport?(): Promise<any>;
+  verifyDatabase?(): Promise<any>;
+  verifyLibrary?(): Promise<any>;
+  recoverInterruptedJobs?(): Promise<any>;
 }
 
 /**

@@ -130,25 +130,8 @@ export const SettingsView: React.FC = () => {
       {/* Runtime Settings Section */}
       <RuntimeSettingsCard />
 
-      {/* Diagnostic & Logs */}
-      <div className="bg-surface-card rounded-xl border border-surface-border p-6 flex items-center justify-between">
-        <div className="space-y-0.5">
-          <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 flex items-center space-x-1.5">
-            <FileText className="w-3.5 h-3.5 text-zinc-400" />
-            <span>Diagnostics & Activity Logs</span>
-          </h3>
-          <p className="text-[11px] text-zinc-500">
-            View structured application logs for technical details.
-          </p>
-        </div>
-
-        <button
-          onClick={() => alert("Diagnostics log window ready.")}
-          className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-md text-xs font-medium transition-colors"
-        >
-          View Logs
-        </button>
-      </div>
+      {/* Phase 8 Diagnostics & System Health Section */}
+      <DiagnosticsAndHealthCard />
     </div>
   );
 };
@@ -288,6 +271,188 @@ const RuntimeSettingsCard: React.FC = () => {
           </div>
         )}
       </div>
+    </div>
+  );
+};
+
+const DiagnosticsAndHealthCard: React.FC = () => {
+  const [health, setHealth] = React.useState<any>(null);
+  const [reportResult, setReportResult] = React.useState<string | null>(null);
+  const [recoveryMsg, setRecoveryMsg] = React.useState<string | null>(null);
+
+  const fetchHealth = async () => {
+    if (downloadService.getSystemHealth) {
+      try {
+        const res = await downloadService.getSystemHealth();
+        setHealth(res);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    fetchHealth();
+  }, []);
+
+  const handleGenerateReport = async () => {
+    if (downloadService.generateDiagnosticReport) {
+      try {
+        const report = await downloadService.generateDiagnosticReport();
+        const jsonStr = JSON.stringify(report, null, 2);
+        setReportResult(jsonStr);
+      } catch (err) {
+        alert(`Failed to generate report: ${err}`);
+      }
+    }
+  };
+
+  const handleVerifyLibrary = async () => {
+    if (downloadService.verifyLibrary) {
+      try {
+        const res = await downloadService.verifyLibrary();
+        setRecoveryMsg(`[Library] ${res.message}`);
+        fetchHealth();
+      } catch (err) {
+        setRecoveryMsg(`[Library Error] ${err}`);
+      }
+    }
+  };
+
+  const handleVerifyDatabase = async () => {
+    if (downloadService.verifyDatabase) {
+      try {
+        const res = await downloadService.verifyDatabase();
+        setRecoveryMsg(`[Database] ${res.message}`);
+        fetchHealth();
+      } catch (err) {
+        setRecoveryMsg(`[Database Error] ${err}`);
+      }
+    }
+  };
+
+  const handleRecoverJobs = async () => {
+    if (downloadService.recoverInterruptedJobs) {
+      try {
+        const res = await downloadService.recoverInterruptedJobs();
+        setRecoveryMsg(`[Queue Recovery] ${res.message}`);
+        fetchHealth();
+      } catch (err) {
+        setRecoveryMsg(`[Queue Error] ${err}`);
+      }
+    }
+  };
+
+  return (
+    <div className="bg-surface-card rounded-xl border border-surface-border p-6 space-y-5">
+      <div className="flex items-center justify-between border-b border-surface-border pb-3">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center space-x-2">
+            <FileText className="w-4 h-4 text-brand-500" />
+            <span>Diagnostics & System Health</span>
+          </h2>
+          <p className="text-xs text-zinc-500">
+            Monitor subsystem integrity and run non-destructive recovery tools.
+          </p>
+        </div>
+
+        {health && (
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-bold ${
+              health.overall_status === "HEALTHY"
+                ? "bg-emerald-500/10 text-emerald-500"
+                : health.overall_status === "DEGRADED"
+                ? "bg-amber-500/10 text-amber-500"
+                : "bg-red-500/10 text-red-500"
+            }`}
+          >
+            {health.overall_status}
+          </span>
+        )}
+      </div>
+
+      {health && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            health.runtime,
+            health.database,
+            health.queue,
+            health.library,
+          ].map((sub: any, idx: number) => (
+            <div key={idx} className="p-3 rounded-lg border border-surface-border bg-zinc-50/50 dark:bg-zinc-900/50 space-y-1">
+              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">{sub.name}</span>
+              <p
+                className={`text-xs font-bold ${
+                  sub.status === "HEALTHY"
+                    ? "text-emerald-500"
+                    : sub.status === "DEGRADED"
+                    ? "text-amber-500"
+                    : "text-red-500"
+                }`}
+              >
+                {sub.status}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {recoveryMsg && (
+        <div className="p-3 rounded-lg border border-brand-500/30 bg-brand-500/10 text-xs text-brand-400 font-mono">
+          {recoveryMsg}
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-surface-border">
+        <button
+          onClick={handleVerifyLibrary}
+          className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-md text-xs font-medium transition-colors whitespace-nowrap"
+        >
+          Verify Library
+        </button>
+
+        <button
+          onClick={handleVerifyDatabase}
+          className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-md text-xs font-medium transition-colors whitespace-nowrap"
+        >
+          Check Database
+        </button>
+
+        <button
+          onClick={handleRecoverJobs}
+          className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-md text-xs font-medium transition-colors whitespace-nowrap"
+        >
+          Recover Queue
+        </button>
+
+        <button
+          onClick={handleGenerateReport}
+          className="px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-xs font-medium transition-colors whitespace-nowrap"
+        >
+          Export Report
+        </button>
+      </div>
+
+      {reportResult && (
+        <div className="mt-3 p-3 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 font-mono text-[11px] space-y-2">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-1">
+            <span className="text-zinc-400 font-bold">Diagnostic Report JSON</span>
+            <button
+              onClick={() => setReportResult(null)}
+              className="text-xs text-zinc-500 hover:text-zinc-300"
+            >
+              Close
+            </button>
+          </div>
+          <textarea
+            readOnly
+            value={reportResult}
+            rows={8}
+            className="w-full bg-transparent text-zinc-300 font-mono text-[10px] outline-none resize-none"
+          />
+        </div>
+      )}
     </div>
   );
 };
