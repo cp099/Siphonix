@@ -1,0 +1,53 @@
+name: Build & Release Binaries
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows x86_64 Binary
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build Release Binary
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Prepare Windows Release Package
+        shell: pwsh
+        run: |
+          $version = "0.1.0"
+          $pkgDir = "siphonix-v$version-windows-x86_64"
+          New-Item -ItemType Directory -Path $pkgDir -Force
+          Copy-Item "target/x86_64-pc-windows-msvc/release/siphonix.exe" "$pkgDir/siphonix.exe"
+          Copy-Item "scripts/install.ps1" "$pkgDir/install.ps1"
+          Copy-Item "scripts/uninstall.ps1" "$pkgDir/uninstall.ps1"
+          Copy-Item "README.md" "$pkgDir/README.md"
+          Copy-Item "LICENSE" "$pkgDir/LICENSE"
+          Compress-Archive -Path "$pkgDir/*" -DestinationPath "$pkgDir.zip" -Force
+          Get-FileHash "$pkgDir.zip" -Algorithm SHA256 | Out-File "$pkgDir.zip.sha256"
+
+      - name: Upload Release Asset to GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v0.1.0 siphonix-v0.1.0-windows-x86_64.zip siphonix-v0.1.0-windows-x86_64.zip.sha256 --clobber || true
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: siphonix-windows-x86_64
+          path: siphonix-v0.1.0-windows-x86_64.zip
