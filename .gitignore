@@ -1,13 +1,6 @@
-# Node dependencies
-node_modules
-.pnpm-store
-
-# Build outputs
-dist
-dist-isolation
-
-# Tauri build artifacts
-src-tauri/target
+# Rust build artifacts
+target/
+Cargo.lock
 
 # OS files
 .DS_Store
@@ -28,3 +21,10 @@ Thumbs.db
 *.db-shm
 *.db-wal
 
+# Media artifacts
+*.mp4
+*.mp3
+*.mkv
+*.webm
+*.part
+*.ytdl
