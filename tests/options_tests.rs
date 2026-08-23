@@ -93,7 +93,7 @@ async fn test_command_builder_format_sort_preferences() {
     opts_fps60.video.selection_mode = "prefer".to_string();
 
     let req_fps60 = DownloadRequest {
-        url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ".to_string(),
+        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string(),
         media_mode: "video".to_string(),
         audio_format: None,
         audio_quality: None,
@@ -111,7 +111,7 @@ async fn test_command_builder_format_sort_preferences() {
     opts_hdr.video.hdr_preference = "hdr".to_string();
 
     let req_hdr = DownloadRequest {
-        url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ".to_string(),
+        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string(),
         media_mode: "video".to_string(),
         audio_format: None,
         audio_quality: None,
@@ -129,7 +129,7 @@ async fn test_command_builder_format_sort_preferences() {
     opts_sdr.video.hdr_preference = "sdr".to_string();
 
     let req_sdr = DownloadRequest {
-        url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ".to_string(),
+        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string(),
         media_mode: "video".to_string(),
         audio_format: None,
         audio_quality: None,
@@ -199,7 +199,7 @@ async fn test_job_and_library_options_snapshot() {
 
     let job = DownloadJob {
         id: "job-snap-1".to_string(),
-        url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ".to_string(),
+        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string(),
         title: "Test Snapshot".to_string(),
         thumbnail_url: None,
         media_mode: "video".to_string(),
@@ -219,7 +219,7 @@ async fn test_job_and_library_options_snapshot() {
         created_at: Utc::now(),
         started_at: None,
         completed_at: None,
-        source_video_id: Some("aqz-KE-bpKQ".to_string()),
+        source_video_id: Some("dQw4w9WgXcQ".to_string()),
         source_playlist_id: None,
         source_playlist_title: None,
         playlist_entry_index: None,

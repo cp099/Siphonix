@@ -14,9 +14,9 @@ use tokio::process::Command;
 async fn test_real_world_batch_and_crash_recovery() {
     let engine = EngineDetector::detect().expect("yt-dlp and ffmpeg must be detected");
     let test_urls = [
-        "https://www.youtube.com/watch?v=aqz-KE-bpKQ", // Big Buck Bunny
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ", // Big Buck Bunny
         "https://www.youtube.com/watch?v=YE7VzlLtp-4", // Tears of Steel clip
-        "https://www.youtube.com/watch?v=aqz-KE-bpKQ", // Big Buck Bunny (2nd item)
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ", // Big Buck Bunny (2nd item)
     ];
 
     let temp_dir =

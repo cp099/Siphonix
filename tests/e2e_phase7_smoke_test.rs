@@ -86,7 +86,7 @@ async fn test_real_world_phase7_native_smoke_test() {
         ..Default::default()
     };
 
-    let test_url = "https://www.youtube.com/watch?v=aqz-KE-bpKQ".to_string();
+    let test_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string();
     let job_id = "phase7-smoke-job-1".to_string();
 
     let job = DownloadJob {
@@ -111,7 +111,7 @@ async fn test_real_world_phase7_native_smoke_test() {
         created_at: chrono::Utc::now(),
         started_at: None,
         completed_at: None,
-        source_video_id: Some("aqz-KE-bpKQ".to_string()),
+        source_video_id: Some("dQw4w9WgXcQ".to_string()),
         source_playlist_id: None,
         source_playlist_title: None,
         playlist_entry_index: None,
@@ -184,7 +184,7 @@ async fn test_real_world_phase7_native_smoke_test() {
             .file_name()
             .unwrap()
             .to_string_lossy()
-            .contains("[aqz-KE-bpKQ]"),
+            .contains("[dQw4w9WgXcQ]"),
         "Filename must match custom template containing ID in brackets"
     );
     assert!(

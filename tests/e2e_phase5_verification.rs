@@ -33,7 +33,7 @@ async fn test_real_world_phase5_library_verification() {
     // TEST 1: Real Video -> Library with after_move:filepath
     // ----------------------------------------------------
     println!("\n--- Test 1: Real Video Download & Exact Path Library Registration ---");
-    let test_video_url = "https://www.youtube.com/watch?v=aqz-KE-bpKQ";
+    let test_video_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
     let video_dest = dir.path().join("video_downloads");
     std::fs::create_dir_all(&video_dest).unwrap();
 
@@ -42,7 +42,7 @@ async fn test_real_world_phase5_library_verification() {
         id: video_job_id.clone(),
         url: test_video_url.to_string(),
         title: "Big Buck Bunny 60fps 4K".to_string(),
-        thumbnail_url: Some("https://i.ytimg.com/vi/aqz-KE-bpKQ/hqdefault.jpg".to_string()),
+        thumbnail_url: Some("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg".to_string()),
         media_mode: "video".to_string(),
         format: "MP4".to_string(),
         quality: "1080p".to_string(),
@@ -60,7 +60,7 @@ async fn test_real_world_phase5_library_verification() {
         created_at: Utc::now(),
         started_at: None,
         completed_at: None,
-        source_video_id: Some("aqz-KE-bpKQ".to_string()),
+        source_video_id: Some("dQw4w9WgXcQ".to_string()),
         source_playlist_id: None,
         source_playlist_title: None,
         playlist_entry_index: None,
@@ -165,7 +165,7 @@ async fn test_real_world_phase5_library_verification() {
         id: audio_job_id.clone(),
         url: test_video_url.to_string(),
         title: "Big Buck Bunny Audio".to_string(),
-        thumbnail_url: Some("https://i.ytimg.com/vi/aqz-KE-bpKQ/hqdefault.jpg".to_string()),
+        thumbnail_url: Some("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg".to_string()),
         media_mode: "audio".to_string(),
         format: "MP3".to_string(),
         quality: "320k".to_string(),
@@ -183,7 +183,7 @@ async fn test_real_world_phase5_library_verification() {
         created_at: Utc::now(),
         started_at: None,
         completed_at: None,
-        source_video_id: Some("aqz-KE-bpKQ".to_string()),
+        source_video_id: Some("dQw4w9WgXcQ".to_string()),
         source_playlist_id: None,
         source_playlist_title: None,
         playlist_entry_index: None,

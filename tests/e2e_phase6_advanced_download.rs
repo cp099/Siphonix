@@ -16,7 +16,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 #[tokio::test]
 async fn test_real_world_phase6_advanced_download_pipeline() {
     let engine = EngineDetector::detect().expect("yt-dlp and ffmpeg must be detected");
-    let test_url = "https://www.youtube.com/watch?v=aqz-KE-bpKQ";
+    let test_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
     let temp = tempdir().expect("tempdir failed");
     let db_path = temp.path().join("phase6_advanced.db");
@@ -58,7 +58,7 @@ async fn test_real_world_phase6_advanced_download_pipeline() {
         id: job_id.clone(),
         url: test_url.to_string(),
         title: "Big Buck Bunny 60fps 4K".to_string(),
-        thumbnail_url: Some("https://i.ytimg.com/vi/aqz-KE-bpKQ/hqdefault.jpg".to_string()),
+        thumbnail_url: Some("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg".to_string()),
         media_mode: "audio".to_string(),
         format: "MP3".to_string(),
         quality: "320k".to_string(),
@@ -76,7 +76,7 @@ async fn test_real_world_phase6_advanced_download_pipeline() {
         created_at: Utc::now(),
         started_at: Some(Utc::now()),
         completed_at: None,
-        source_video_id: Some("aqz-KE-bpKQ".to_string()),
+        source_video_id: Some("dQw4w9WgXcQ".to_string()),
         source_playlist_id: None,
         source_playlist_title: None,
         playlist_entry_index: None,
@@ -158,7 +158,7 @@ async fn test_real_world_phase6_advanced_download_pipeline() {
     // Criteria 3: Filename follows custom naming template %(title)s [%(id)s].%(ext)s
     let file_name = final_path.file_name().unwrap().to_str().unwrap();
     assert!(
-        file_name.contains("[aqz-KE-bpKQ]"),
+        file_name.contains("[dQw4w9WgXcQ]"),
         "Filename must contain YouTube ID in brackets matching custom template"
     );
     assert!(file_name.ends_with(".mp3"), "Filename must end with .mp3");

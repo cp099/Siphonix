@@ -8,13 +8,13 @@ use tokio::process::Command;
 #[tokio::test]
 async fn test_real_metadata_inspection() {
     let engine = EngineDetector::detect().expect("yt-dlp and ffmpeg must be detected");
-    let test_url = "https://www.youtube.com/watch?v=aqz-KE-bpKQ"; // Blender open movie clip
+    let test_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"; // Blender open movie clip
 
     let info = inspect_url(test_url, &engine)
         .await
         .expect("inspect_url failed");
 
-    assert_eq!(info.id, "aqz-KE-bpKQ");
+    assert_eq!(info.id, "dQw4w9WgXcQ");
     assert!(!info.title.is_empty(), "Title should not be empty");
     assert!(info.duration.is_some(), "Duration should be populated");
     println!(
@@ -26,7 +26,7 @@ async fn test_real_metadata_inspection() {
 #[tokio::test]
 async fn test_real_video_download_mp4_1080p() {
     let engine = EngineDetector::detect().expect("yt-dlp and ffmpeg must be detected");
-    let test_url = "https://www.youtube.com/watch?v=aqz-KE-bpKQ";
+    let test_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
     let dest_dir = std::env::temp_dir().join("siphonix_e2e_video");
     let _ = fs::create_dir_all(&dest_dir);
@@ -84,7 +84,7 @@ async fn test_real_video_download_mp4_1080p() {
 #[tokio::test]
 async fn test_real_audio_download_mp3_320k() {
     let engine = EngineDetector::detect().expect("yt-dlp and ffmpeg must be detected");
-    let test_url = "https://www.youtube.com/watch?v=aqz-KE-bpKQ";
+    let test_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
     let dest_dir = std::env::temp_dir().join("siphonix_e2e_audio");
     let _ = fs::create_dir_all(&dest_dir);
@@ -142,7 +142,7 @@ async fn test_real_audio_download_mp3_320k() {
 #[tokio::test]
 async fn test_real_cancellation_lifecycle() {
     let engine = EngineDetector::detect().expect("yt-dlp and ffmpeg must be detected");
-    let test_url = "https://www.youtube.com/watch?v=aqz-KE-bpKQ";
+    let test_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
     let dest_dir = std::env::temp_dir().join("siphonix_e2e_cancel");
     let _ = fs::create_dir_all(&dest_dir);

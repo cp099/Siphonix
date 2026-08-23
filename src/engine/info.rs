@@ -30,6 +30,8 @@ pub async fn inspect_url(url: &str, engine: &EnginePaths) -> Result<VideoInfo, E
         "--dump-json".to_string(),
         "--no-playlist".to_string(),
         "--skip-download".to_string(),
+        "--extractor-args".to_string(),
+        "youtube:player_client=all".to_string(),
     ];
     if std::env::var("SIPHONIX_DEV_INSECURE_SSL").is_ok() {
         args.push("--no-check-certificates".to_string());

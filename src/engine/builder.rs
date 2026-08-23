@@ -76,6 +76,8 @@ impl CommandBuilder {
         args.push("after_move:filepath".to_string());
         args.push("--progress-template".to_string());
         args.push("SIPHONIX_PROGRESS|%(progress.status)s|%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._total_bytes_str)s".to_string());
+        args.push("--extractor-args".to_string());
+        args.push("youtube:player_client=all".to_string());
 
         let temp_dir = std::env::temp_dir().join("siphonix_temp");
         let _ = std::fs::create_dir_all(&temp_dir);

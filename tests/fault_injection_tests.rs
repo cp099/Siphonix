@@ -47,7 +47,7 @@ async fn test_diagnostics_storage_unavailable_does_not_block_queue() {
     // Enqueue a job and verify queue operations complete normally despite storage failure
     let job = DownloadJob {
         id: "fault-job-1".to_string(),
-        url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ".to_string(),
+        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string(),
         title: "Fault Test Video".to_string(),
         thumbnail_url: None,
         media_mode: "video".to_string(),
@@ -67,7 +67,7 @@ async fn test_diagnostics_storage_unavailable_does_not_block_queue() {
         created_at: chrono::Utc::now(),
         started_at: None,
         completed_at: None,
-        source_video_id: Some("aqz-KE-bpKQ".to_string()),
+        source_video_id: Some("dQw4w9WgXcQ".to_string()),
         source_playlist_id: None,
         source_playlist_title: None,
         playlist_entry_index: None,
@@ -100,7 +100,7 @@ async fn test_cancellation_during_download_and_processing() {
     let job_id = "cancel-job-101".to_string();
     let job = DownloadJob {
         id: job_id.clone(),
-        url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ".to_string(),
+        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string(),
         title: "Cancellation Test Video".to_string(),
         thumbnail_url: None,
         media_mode: "video".to_string(),
@@ -120,7 +120,7 @@ async fn test_cancellation_during_download_and_processing() {
         created_at: chrono::Utc::now(),
         started_at: Some(chrono::Utc::now()),
         completed_at: None,
-        source_video_id: Some("aqz-KE-bpKQ".to_string()),
+        source_video_id: Some("dQw4w9WgXcQ".to_string()),
         source_playlist_id: None,
         source_playlist_title: None,
         playlist_entry_index: None,

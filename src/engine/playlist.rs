@@ -87,6 +87,8 @@ impl PlaylistInspector {
             "--flat-playlist".to_string(),
             "--dump-single-json".to_string(),
             "--skip-download".to_string(),
+            "--extractor-args".to_string(),
+            "youtube:player_client=all".to_string(),
         ];
         if std::env::var("SIPHONIX_DEV_INSECURE_SSL").is_ok() {
             args.push("--no-check-certificates".to_string());
