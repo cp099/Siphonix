@@ -12,30 +12,35 @@
    Developed by: Chirag P Patil (cp099) • https://github.com/cp099
 ```
 
+[![Release](https://img.shields.io/github/v/release/cp099/Siphonix?style=flat-square&color=cyan)](https://github.com/cp099/Siphonix/releases/tag/v0.1.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-1.80%2B-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org/)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg?style=flat-square)]()
+
 > **Universal High-Performance Terminal Media Downloader** — Fast, robust, and reliable video and audio extraction powered by Rust, `yt-dlp`, and `FFmpeg`.
 
 ---
 
-## Overview
+## 🌟 Overview
 
-**Siphonix** is a modern terminal-native media downloader engineered for maximum speed, universal hardware playback compatibility, and extreme reliability. Whether launched as an interactive numbered terminal wizard or executed through direct CLI flags, Siphonix ensures flawless downloads from YouTube with zero configuration headaches.
-
----
-
-## Key Features
-
-- **Universal QuickTime & Apple Silicon Playback**: Video downloads in MP4 format are automatically multiplexed with high-bitrate **H.264 (`avc1`)** video and **320 kbps AAC (`mp4a`)** audio, ensuring 100% native compatibility with macOS QuickTime Player, iOS Photos, Windows Media Player, and VLC.
-- **Studio-Quality Audio Extraction**: Audio downloads extract clean **320 kbps MP3** or lossless **FLAC** directly from best-quality source audio streams (`ba/b`) with embedded metadata tags and album cover art.
-- **Interactive Numbered Wizard (TUI)**: A distraction-free, 4-screen terminal interface navigated effortlessly with number keys (`1`–`7`) + Enter.
-- **Direct CLI Automation**: Full command-line interface for scripting, headless servers, and rapid downloads.
-- **Real-time Streaming Progress**: Live progress bars displaying download percentage, download speed (`MiB/s`), ETA countdown, and FFmpeg multiplexing stages.
-- **Download History & SQLite Persistence**: Local SQLite database tracking download provenance, file sizes, timestamps, and disk verification.
-- **Zero-Orphan Process Management**: Automatic process termination (`kill_on_drop`), `Ctrl+C` signal handling, and partial `.part` / `.ytdl` file cleanup.
-- **System & Engine Diagnostics**: One-command verification of installed engine binaries and runtime health.
+**Siphonix** is a modern terminal-native media downloader engineered for maximum speed, universal hardware playback compatibility, and extreme reliability. Whether launched as an interactive numbered terminal wizard or executed through direct CLI commands, Siphonix guarantees flawless downloads from YouTube with zero configuration headaches.
 
 ---
 
-## Prerequisites
+## ✨ Key Highlights
+
+- **Universal QuickTime & Apple Silicon Playback**: Video downloads in MP4 format are automatically multiplexed with high-bitrate **H.264 (`avc1`)** video and **320 kbps AAC (`mp4a`)** audio, guaranteeing 100% native compatibility with macOS QuickTime Player, iOS Photos, Windows Media Player, and VLC.
+- **Studio-Quality Audio Extraction**: Audio downloads extract pristine **320 kbps MP3** or lossless **24-bit FLAC** directly from best-quality source audio streams (`ba/b`) with embedded metadata ID3 tags and album cover art.
+- **Interactive 4-Screen Numbered Wizard (TUI)**: A clean, distraction-free terminal wizard navigated with number keys (`1`–`7`) + Enter.
+- **Direct CLI Automation**: Full command-line flag parser (`clap`) for automated scripts, cron jobs, and power users.
+- **Real-Time Streaming Progress**: Live progress bars displaying download percentage, download speed (`MiB/s`), ETA countdown, and FFmpeg multiplexing stages.
+- **Download History & SQLite Persistence**: High-concurrency WAL-mode SQLite database tracking download provenance, file sizes, timestamps, and on-disk verification (`siphonix --history`).
+- **Zero-Orphan Process Management**: Subprocesses are isolated with `kill_on_drop(true)`. On `Ctrl+C`, active child processes are immediately killed and partial `.part` / `.ytdl` staging files are wiped cleanly.
+- **System & Engine Diagnostics**: One-command diagnostic verification of installed engine binaries and runtime health (`siphonix --diagnostics`).
+
+---
+
+## 📋 Prerequisites
 
 Siphonix requires `yt-dlp` and `ffmpeg` to be installed and available on your system `PATH`:
 
@@ -45,16 +50,18 @@ brew install yt-dlp ffmpeg
 ```
 
 ### Windows (Winget / Chocolatey)
-```bash
+```powershell
+# Using Windows Package Manager (winget)
 winget install yt-dlp Gyan.FFmpeg
-# or using Chocolatey:
+
+# Or using Chocolatey
 choco install yt-dlp ffmpeg
 ```
 
 ### Linux (Ubuntu / Debian / Arch)
 ```bash
 # Ubuntu / Debian
-sudo apt update && sudo apt install ffmpeg
+sudo apt update && sudo apt install ffmpeg python3-pip
 pip install --upgrade yt-dlp
 
 # Arch Linux
@@ -63,45 +70,54 @@ sudo pacman -S yt-dlp ffmpeg
 
 ---
 
-## Installation
+## 🚀 Installation
 
-### 1. Build and Install Globally
+### Option 1: Quick Install (Prebuilt Release Archive)
 
-Install Siphonix directly to your Cargo binary path (`~/.cargo/bin/siphonix`):
+#### macOS & Linux:
+```bash
+# Download and install latest release
+curl -sSL https://github.com/cp099/Siphonix/releases/download/v0.1.0/siphonix-v0.1.0-darwin-arm64.tar.gz | tar -xz
+./siphonix-v0.1.0-darwin-arm64/install.sh
+```
+
+#### Windows (PowerShell):
+Download and extract the release from [GitHub Releases](https://github.com/cp099/Siphonix/releases/tag/v0.1.0), then run:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+---
+
+### Option 2: Build from Source with Cargo
 
 ```bash
 # Clone the repository
 git clone https://github.com/cp099/Siphonix.git
 cd Siphonix
 
-# Build and install release binary
+# Build and install globally to ~/.cargo/bin
 cargo install --path . --force
 ```
 
 Ensure `~/.cargo/bin` is in your shell `PATH`. You can now run `siphonix` from any terminal!
 
-### 2. Run Directly with Cargo (Development)
-
-```bash
-cargo run
-```
-
 ---
 
-## Usage
+## 🎮 Usage
 
-### Interactive Wizard Mode
+### 1. Interactive Wizard Mode
 
-Simply type `siphonix` with no arguments to launch the 4-step wizard:
+Simply run `siphonix` with no arguments to launch the 4-step interactive wizard:
 
 ```bash
 siphonix
 ```
 
 1. **Main Menu / URL Input**: Paste any YouTube video or playlist URL (or select options `1`–`4`).
-2. **Metadata Card**: Inspects video title, uploader, and duration instantly.
+2. **Metadata Card**: Displays video title, duration, and uploader.
 3. **Format Selection**: Choose target format via number keys:
-   - `[1]` MP4 Video (Universal QuickTime / Apple / Windows)
+   - `[1]` MP4 Video (Universal QuickTime / Apple Silicon / Windows)
    - `[2]` MP3 Audio (Universal / 320 kbps)
    - `[3]` MKV Video (High Fidelity / Multi-track)
    - `[4]` FLAC Audio (Lossless Studio Quality)
@@ -109,41 +125,41 @@ siphonix
 4. **Quality Selection**:
    - For Video: `Best Available`, `4K (2160p)`, `2K (1440p)`, `1080p (Full HD)`, `720p (HD)`, `480p (SD)`, `360p (Low)`.
    - For Audio: `320 kbps (High Quality)`, `256 kbps`, `192 kbps`, `128 kbps`, `Best VBR`.
-5. **Destination Selection**: Set download directory (defaults to `~/Downloads/Siphonix`).
-6. **Live Progress Terminal**: Real-time progress bar with speed, ETA, and post-download actions (open folder, play file, or download another).
+5. **Destination**: Select download folder (defaults to `~/Downloads/Siphonix`).
+6. **Live Progress Terminal**: Real-time progress bar with speed, ETA, and post-download actions (open enclosing folder, play file, or download another).
 
 ---
 
-### Direct CLI Commands
+### 2. Direct CLI Commands
 
-For fast downloads and automated scripts, pass arguments directly:
+For fast downloads, shell scripting, or headless servers:
 
 ```bash
-# Download MP4 Video in 1080p
-siphonix "https://www.youtube.com/watch?v=aqz-KE-bpKQ" -m video -f MP4 -q 1080p
+# Download MP4 Video in 1080p Full HD
+siphonix "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -m video -f MP4 -q 1080p
 
 # Download MP4 Video in 4K (2160p)
-siphonix "https://www.youtube.com/watch?v=aqz-KE-bpKQ" -m video -f MP4 -q 2160p
+siphonix "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -m video -f MP4 -q 2160p
 
-# Download MP3 Audio in 320 kbps
-siphonix "https://www.youtube.com/watch?v=aqz-KE-bpKQ" -m audio -f MP3 -q 320k
+# Download MP3 Audio in 320 kbps (Studio Quality)
+siphonix "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -m audio -f MP3 -q 320k
 
 # Download Lossless FLAC Audio
-siphonix "https://www.youtube.com/watch?v=aqz-KE-bpKQ" -m audio -f FLAC
+siphonix "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -m audio -f FLAC
 
 # Custom Output Destination
-siphonix "https://www.youtube.com/watch?v=aqz-KE-bpKQ" -o ~/Desktop/Music -m audio -f MP3
+siphonix "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -o ~/Desktop/Music -m audio -f MP3
 
-# View Download History
+# View Download History & Provenance
 siphonix --history
 
-# Run Engine & System Diagnostics
+# Run Engine & System Health Diagnostics
 siphonix --diagnostics
 ```
 
 ---
 
-## CLI Options Reference
+## ⚙️ CLI Options Reference
 
 ```text
 Usage: siphonix [OPTIONS] [URL]
@@ -166,13 +182,22 @@ Options:
 
 ---
 
-## Project Architecture
+## 🏗️ Project Architecture
 
 ```text
 Siphonix/
 ├── Cargo.toml                  # Root manifest & dependencies
 ├── LICENSE                     # MIT License
-├── README.md                   # Documentation
+├── README.md                   # Complete documentation
+├── RELEASE_NOTES.md            # Official v0.1.0 release notes
+├── DEPLOYMENT.md               # Cross-platform deployment manual
+├── dist/                       # Standalone release bundles & checksums
+├── scripts/                    # Automated deployment & packaging scripts
+│   ├── install.sh              # POSIX installer for macOS & Linux
+│   ├── uninstall.sh            # POSIX uninstaller
+│   ├── install.ps1             # PowerShell installer for Windows
+│   ├── uninstall.ps1           # PowerShell uninstaller for Windows
+│   └── package_release.sh      # Automated release packager
 ├── migrations/                 # Embedded SQLite schema migrations
 │   ├── 0001_initial_schema.sql
 │   ├── 0002_add_playlist_provenance.sql
@@ -190,12 +215,12 @@ Siphonix/
 │   ├── library/                # Media provenance, disk verification, OS opener
 │   ├── diagnostics/            # Health monitoring, non-blocking logger
 │   └── runtime/                # Binary discovery, version checker
-└── tests/                      # 72+ automated unit & integration test suites
+└── tests/                      # 72 automated unit & integration test suites
 ```
 
 ---
 
-## Open Source Acknowledgements
+## 🤝 Open Source Acknowledgements
 
 Siphonix is built with gratitude on top of the following open source tools and libraries:
 
@@ -217,14 +242,15 @@ Siphonix is built with gratitude on top of the following open source tools and l
 
 ---
 
-## Author
+## 👤 Author
 
 Developed by **Chirag P Patil** ([@cp099](https://github.com/cp099))
 - **GitHub Profile**: [https://github.com/cp099](https://github.com/cp099)
 - **Project Repository**: [https://github.com/cp099/Siphonix](https://github.com/cp099/Siphonix)
+- **Latest Release**: [https://github.com/cp099/Siphonix/releases/tag/v0.1.0](https://github.com/cp099/Siphonix/releases/tag/v0.1.0)
 
 ---
 
-## License
+## 📄 License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
