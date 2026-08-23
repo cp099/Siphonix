@@ -33,6 +33,8 @@ jobs:
           New-Item -ItemType Directory -Path $pkgDir -Force
           Copy-Item "target/x86_64-pc-windows-msvc/release/siphonix.exe" "$pkgDir/siphonix.exe"
           Copy-Item "scripts/install.ps1" "$pkgDir/install.ps1"
+          Copy-Item "scripts/install.bat" "$pkgDir/install.bat"
+          Copy-Item "scripts/run.bat" "$pkgDir/run.bat"
           Copy-Item "scripts/uninstall.ps1" "$pkgDir/uninstall.ps1"
           Copy-Item "README.md" "$pkgDir/README.md"
           Copy-Item "LICENSE" "$pkgDir/LICENSE"
