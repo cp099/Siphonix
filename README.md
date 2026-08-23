@@ -81,11 +81,10 @@ curl -sSL https://github.com/cp099/Siphonix/releases/download/v0.1.0/siphonix-v0
 ./siphonix-v0.1.0-darwin-arm64/install.sh
 ```
 
-#### Windows (PowerShell):
-Download and extract the release from [GitHub Releases](https://github.com/cp099/Siphonix/releases/tag/v0.1.0), then run:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1
-```
+#### Windows (PowerShell / Direct ZIP):
+1. Download **[`siphonix-v0.1.0-windows-x86_64.zip`](https://github.com/cp099/Siphonix/releases/download/v0.1.0/siphonix-v0.1.0-windows-x86_64.zip)**.
+2. Extract the ZIP file.
+3. Right-click `install.ps1` and select **"Run with PowerShell"** (or run `powershell -ExecutionPolicy Bypass -File .\install.ps1`).
 
 ---
 
