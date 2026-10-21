@@ -1,0 +1,11 @@
+# Cargo Audit / RustSec Configuration for Siphonix
+
+[advisories]
+ignore = [
+    # Marvin Attack in rsa crate (no upstream fix available, timing sidechannel only)
+    "RUSTSEC-2023-0071",
+    # Transitive unmaintained notices for pure-data crates
+    "RUSTSEC-2025-0057", # fxhash
+    "RUSTSEC-2025-0119", # number_prefix
+]
+informational_warnings = ["unmaintained", "notice"]
